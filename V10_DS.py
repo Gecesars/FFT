@@ -24,8 +24,6 @@ UNIT_MULTIPLIERS = {"Hz": 1, "kHz": 1e3, "MHz": 1e6, "GHz": 1e9}
 class SignalGeneratorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        # Suprime erros de comandos Tcl agendados (draw_idle, check_dpi_scaling, etc.)
-        self.report_callback_exception = lambda exc, val, tb: None
         self.title("Gerador de Sinais Avançado (Zoom Adaptativo)")
         self.geometry("1400x950")
 
@@ -44,6 +42,10 @@ class SignalGeneratorApp(ctk.CTk):
         self.mod_am = tk.BooleanVar(value=False)
         self.mod_fm = tk.BooleanVar(value=False)
 
+        # Frame principal para organizar layout
+        self.main_frame = ctk.CTkFrame(self)
+        self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
         self._build_sidebar()
         self._build_plot_area()
         self._build_context_menu()
@@ -51,8 +53,8 @@ class SignalGeneratorApp(ctk.CTk):
         self._build_status_bar()
 
     def _build_sidebar(self):
-        self.sidebar = ctk.CTkFrame(self, width=350, corner_radius=8)
-        self.sidebar.pack(side="left", fill="y", padx=10, pady=10)
+        self.sidebar = ctk.CTkFrame(self.main_frame, width=350, corner_radius=8)
+        self.sidebar.pack(side="left", fill="y", padx=(0, 10), pady=10)
 
         def section(title, color):
             frm = ctk.CTkFrame(self.sidebar, fg_color=color, corner_radius=6)
@@ -84,7 +86,7 @@ class SignalGeneratorApp(ctk.CTk):
                                                                                                              padx=10,
                                                                                                              pady=5)
         self.slider_fm_dev = ctk.CTkSlider(frm_mod, from_=0, to=1, number_of_steps=100);
-        self.slider_fm_dev.set(50)
+        self.slider_fm_dev.set(0.5)
         self.slider_fm_dev.configure(state="disabled");
         self.slider_fm_dev.pack(fill="x", padx=10, pady=(0, 10))
 
@@ -121,28 +123,40 @@ class SignalGeneratorApp(ctk.CTk):
         return menu
 
     def _build_plot_area(self):
-        frm = ctk.CTkFrame(self)
-        frm.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+        # Frame para área de plotagem e controles
+        plot_frame = ctk.CTkFrame(self.main_frame)
+        plot_frame.pack(side="left", fill="both", expand=True, padx=0, pady=0)
+
+        # Frame para gráficos
+        graph_frame = ctk.CTkFrame(plot_frame)
+        graph_frame.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # Frame para controles de zoom
+        ctrl_frame = ctk.CTkFrame(plot_frame, height=40)
+        ctrl_frame.pack(fill="x", pady=(0, 5))
+
+        # Criação dos gráficos
         self.fig, (self.ax_time, self.ax_freq) = plt.subplots(2, 1, facecolor="#2B2B2B")
-        self.ax_time.set_facecolor("#3C3C3C");
+        self.ax_time.set_facecolor("#3C3C3C")
         self.ax_freq.set_facecolor("#3C3C3C")
         self.fig.tight_layout(pad=3.0)
-        self.canvas = FigureCanvasTkAgg(self.fig, master=frm)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=graph_frame)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
-        ctrl = ctk.CTkFrame(frm)
-        ctrl.pack(fill="x", pady=5)
-        ctk.CTkLabel(ctrl, text="Zoom Tempo:").pack(side="left", padx=5)
-        self.zoom_time = ctk.CTkSlider(ctrl, from_=0.001, to=1.0, command=self.update_time_zoom)
-        ctk.CTkLabel(ctrl, text="Zoom Freq:").pack(side="left", padx=5)
-        self.zoom_freq = ctk.CTkSlider(ctrl, from_=0.001, to=1.0, command=self.update_freq_zoom)
+        # Controles de zoom
+        ctk.CTkLabel(ctrl_frame, text="Zoom Tempo:").pack(side="left", padx=(10, 5))
+        self.zoom_time = ctk.CTkSlider(ctrl_frame, from_=0.001, to=1.0, command=self.update_time_zoom)
+        self.zoom_time.set(1.0)
+        self.zoom_time.pack(side="left", fill="x", expand=True, padx=5)
+
+        ctk.CTkLabel(ctrl_frame, text="Zoom Freq:").pack(side="left", padx=(10, 5))
+        self.zoom_freq = ctk.CTkSlider(ctrl_frame, from_=0.001, to=1.0, command=self.update_freq_zoom)
         self.zoom_freq.set(1.0)
         self.zoom_freq.pack(side="left", fill="x", expand=True, padx=5)
 
-        self.zoom_time.set(1.0)
-        self.zoom_time.pack(side="left", fill="x", expand=True, padx=5)
-        ctk.CTkButton(ctrl, text="Reset", width=50, command=self.reset_zoom).pack(side="right", padx=5)
+        ctk.CTkButton(ctrl_frame, text="Reset Zoom", width=100, command=self.reset_zoom).pack(side="right", padx=10)
 
+        # Eventos do mouse
         self.canvas.mpl_connect('button_press_event', self._on_mouse_press)
         self.canvas.mpl_connect('button_release_event', self._on_mouse_release)
         self.canvas.mpl_connect('motion_notify_event', self._on_mouse_motion)
@@ -162,12 +176,12 @@ class SignalGeneratorApp(ctk.CTk):
 
     def _build_marker_panel(self):
         # Container à direita da área dos gráficos
-        side_panel = ctk.CTkFrame(self, width=250, corner_radius=6)
-        side_panel.pack(side="right", fill="y", padx=(0, 10), pady=10)
+        self.side_panel = ctk.CTkFrame(self.main_frame, width=250, corner_radius=6)
+        self.side_panel.pack(side="right", fill="y", padx=(0, 0), pady=10)
 
         # --- Marcadores de Tempo
-        frm_time = ctk.CTkFrame(side_panel, fg_color="#1E1E1E", corner_radius=6)
-        frm_time.pack(fill="x", pady=(10, 5), padx=5)
+        frm_time = ctk.CTkFrame(self.side_panel, fg_color="#1E1E1E", corner_radius=6)
+        frm_time.pack(fill="x", pady=(0, 10), padx=5)
         ctk.CTkLabel(frm_time, text="Marcadores de Tempo", text_color="cyan", font=("Arial", 12, "bold")).pack(
             anchor="w", pady=2, padx=8)
 
@@ -185,8 +199,8 @@ class SignalGeneratorApp(ctk.CTk):
         self.lbl_dy.pack(anchor="w", padx=8)
 
         # --- Marcadores de Frequência
-        frm_freq = ctk.CTkFrame(side_panel, fg_color="#1E1E1E", corner_radius=6)
-        frm_freq.pack(fill="x", pady=(10, 5), padx=5)
+        frm_freq = ctk.CTkFrame(self.side_panel, fg_color="#1E1E1E", corner_radius=6)
+        frm_freq.pack(fill="x", pady=(0, 10), padx=5)
         ctk.CTkLabel(frm_freq, text="Marcadores de Frequência", text_color="orange", font=("Arial", 12, "bold")).pack(
             anchor="w", pady=2, padx=8)
 
@@ -203,23 +217,22 @@ class SignalGeneratorApp(ctk.CTk):
         self.lbl_dm = ctk.CTkLabel(frm_freq, text="Δ|Y|: ---")
         self.lbl_dm.pack(anchor="w", padx=8)
 
-    def set_status(self, msg, color="white"):
-        """Atualiza a barra de status no rodapé."""
-        self.status_bar.configure(text=msg, text_color=color)
-
     def _build_status_bar(self):
-        """Cria a barra de status no rodapé da janela (chame só uma vez)."""
         self.status_bar = ctk.CTkLabel(
             self,
             text="Pronto",
             anchor="w",
+            height=25,
             fg_color="#222222",
             text_color="white",
-            font=("Arial", 11, "italic")
+            font=("Arial", 11, "italic"),
+            corner_radius=0
         )
         self.status_bar.pack(side="bottom", fill="x", padx=0, pady=0)
 
-
+    def set_status(self, msg, color="white"):
+        """Atualiza a barra de status no rodapé."""
+        self.status_bar.configure(text=msg, text_color=color)
 
     def _on_am_fm_toggle(self):
         self.slider_am.configure(state="normal" if self.mod_am.get() else "disabled")
@@ -227,17 +240,15 @@ class SignalGeneratorApp(ctk.CTk):
 
     def submit_plot_task(self):
         self.btn_generate.configure(state="disabled", text="Gerando...")
-        self.status_bar.configure(text="Iniciando geração de sinal...")
+        self.set_status("⏳ Iniciando geração de sinal...", "yellow")
         self.executor.submit(self._compute_and_plot_task)
 
     def _compute_and_plot_task(self):
         try:
             params = self._validate_inputs()
             if not params:
-                self.set_status("Erro ao gerar o sinal", "red")
-
+                self.set_status("❌ Erro ao gerar o sinal", "red")
                 return
-            self.set_status("⏳ Gerando sinal...", "yellow")
 
             # gera eixo tempo e sinal
             t = np.arange(params['N']) / params['Fs']
@@ -253,55 +264,14 @@ class SignalGeneratorApp(ctk.CTk):
 
             # executa atualização de plot na thread principal
             self.after(0, self._update_plots)
-            self.set_status("✅ Gráficos atualizados com sucesso!", "lightgreen")
 
         except Exception as e:
-            # mostra o erro corretamente sem NameError
-            self.after(0, messagebox.showerror, "Erro de Cálculo", str(e))
+            self.after(0, lambda: messagebox.showerror("Erro de Cálculo", str(e)))
+            self.set_status(f"❌ Erro: {str(e)}", "red")
 
         finally:
             # reativa o botão
             self.after(0, lambda: self.btn_generate.configure(state="normal", text="Gerar Sinal"))
-            self.after(0, lambda: self.status_bar.configure(text="Pronto"))
-
-    # def _validate_inputs(self):
-    #     try:
-    #         p = {
-    #             'duration': float(self.entry_duration.get()),
-    #             'Fc': float(self.entry_fc.get()) * UNIT_MULTIPLIERS[self.units_fc.get()],
-    #             'Fs': float(self.entry_fs.get()) * UNIT_MULTIPLIERS[self.units_fs.get()],
-    #             'Fm': float(self.entry_fm.get()) * UNIT_MULTIPLIERS[self.units_fm.get()],
-    #             'waveform': self.waveform.get(),
-    #             'am_on': self.mod_am.get(), 'am_depth': self.slider_am.get(),
-    #             'fm_on': self.mod_fm.get(), 'fm_dev': self.slider_fm_dev.get()
-    #         }
-    #         if p['duration'] <= 0 or p['Fs'] <= 0: raise ValueError("Duração e Fs devem ser > 0.")
-    #         p['N'] = int(p['duration'] * p['Fs'])
-    #         if p['N'] < 16: raise ValueError("Combinação de Duração e Fs resulta em poucos pontos (< 16).")
-    #         if p['N'] % 2 != 0: p['N'] += 1  # Garante N par para FFT
-    #
-    #         max_freq = max(p.get('Fc', 0), p.get('Fm', 0))
-    #         if max_freq >= p['Fs'] / 2: raise ValueError(
-    #             f"Nyquist violado! Frequência máxima ({max_freq}Hz) deve ser < Fs/2 ({p['Fs'] / 2}Hz).")
-    #
-    #         self.after(0, lambda: self.slider_fm_dev.configure(to=p['Fs'] / 2 - p['Fc']))
-    #         return p
-    #     except ValueError as e:
-    #         # aqui “e=e” prende o valor de e dentro do lambda
-    #         self.after(0, lambda e=e: messagebox.showerror("Erro de Entrada", str(e)))
-    #         return None
-
-    def update_freq_zoom(self, val=None):
-        if not self.last_data:
-            return
-
-        # Define os novos limites do eixo X da frequência
-        center = (self.ax_freq.get_xlim()[0] + self.ax_freq.get_xlim()[1]) / 2
-        total_width = self.last_data['f'][-1] - self.last_data['f'][0]
-
-        new_width = total_width * float(val) if val > 0.001 else total_width * 0.001
-        self.ax_freq.set_xlim(center - new_width / 2, center + new_width / 2)
-        self.canvas.draw_idle()
 
     def _validate_inputs(self):
         try:
@@ -339,18 +309,17 @@ class SignalGeneratorApp(ctk.CTk):
 
             # Ajusta dinamicamente o alcance do slider de desvio FM
             self.after(0, lambda: self.slider_fm_dev.configure(
-                to=max(0, p['Fs'] / 2 - p['Fc'])
+                to=max(0.1, p['Fs'] / 2 - p['Fc'])
             ))
 
             return p
 
         except ValueError as e:
-            # captura 'e' como argumento padrão e evita NameError
-            self.after(0, messagebox.showerror, "Erro de Entrada", str(e))
+            self.after(0, lambda: messagebox.showerror("Erro de Entrada", str(e)))
+            self.set_status(f"❌ Erro: {str(e)}", "red")
             return None
 
     def _generate_waveform(self, p, t):
-        # ... (código idêntico à versão anterior)
         wf, Fc = p['waveform'], p['Fc']
         if wf == "Seno":
             return np.sin(2 * np.pi * Fc * t)
@@ -377,22 +346,25 @@ class SignalGeneratorApp(ctk.CTk):
         elif wf == "Impulso":
             return unit_impulse(p['N'], 'mid')
         elif wf == "Tangente":
-            y = np.tan(np.pi * Fc * t); return np.clip(y, -10, 10)
+            y = np.tan(np.pi * Fc * t);
+            return np.clip(y, -10, 10)
         else:
             return np.zeros_like(t)
 
     def _apply_modulation(self, p, y, t):
-        # ... (código idêntico à versão anterior)
         if p['am_on']:
             modulator = np.sin(2 * np.pi * p['Fm'] * t)
             y *= (1 + p['am_depth'] * modulator)
-        elif p['fm_on']:
+        if p['fm_on']:
             modulating_signal = y
             integrated_modulator = np.cumsum(modulating_signal) * (1 / p['Fs'])
             y = np.sin(2 * np.pi * p['Fc'] * t + 2 * np.pi * p['fm_dev'] * integrated_modulator)
         return y
 
     def _update_plots(self):
+        if not self.last_data:
+            return
+
         self.ax_time.clear()
         self.ax_freq.clear()
 
@@ -401,32 +373,33 @@ class SignalGeneratorApp(ctk.CTk):
         self.ax_time.set_title("Domínio do Tempo", color='white')
         self.ax_time.grid(True, linestyle='--', alpha=0.5)
         self.ax_time.tick_params(colors='white')
+        self.ax_time.xaxis.set_major_formatter(FuncFormatter(self._format_time_axis))
 
         self.ax_freq.plot(self.last_data['f'], self.last_data['Y'], color="orange")
         self.ax_freq.set_title("Domínio da Frequência (FFT)", color='white')
         self.ax_freq.set_ylabel("|Y(f)|", color='white')
         self.ax_freq.grid(True, linestyle='--', alpha=0.5)
         self.ax_freq.tick_params(colors='white')
+        self.ax_freq.xaxis.set_major_formatter(FuncFormatter(self._format_freq_axis))
 
         self.fig.tight_layout(pad=3.0)
         self.clear_markers('all')
         self.reset_zoom()
-
-        # Corrigido: formatação dos ticks
-
-
         self.canvas.draw()
-        self.status_bar.configure(text="Gráficos atualizados com sucesso!")
+        self.set_status("✅ Gráficos atualizados com sucesso!", "lightgreen")
 
     def reset_zoom(self):
-        if not self.last_data: return
+        if not self.last_data:
+            return
+
         self.ax_time.set_xlim(self.last_data['t'][0], self.last_data['t'][-1])
         self.ax_freq.set_xlim(self.last_data['f'][0], self.last_data['f'][-1])
         self.zoom_time.set(1.0)
+        self.zoom_freq.set(1.0)
         self.update_time_zoom(1.0)  # Força a atualização do plot
         self.canvas.draw()
 
-    def update_time_zoom(self, val=None):
+    def update_time_zoom(self, val):
         if not self.last_data or self.time_plot_line is None:
             return
 
@@ -459,18 +432,23 @@ class SignalGeneratorApp(ctk.CTk):
 
         self.canvas.draw_idle()
 
-    # --- Métodos de Marcadores (idênticos à versão anterior) ---
+    def update_freq_zoom(self, val):
+        if not self.last_data:
+            return
+
+        # Define os novos limites do eixo X da frequência
+        center = (self.ax_freq.get_xlim()[0] + self.ax_freq.get_xlim()[1]) / 2
+        total_width = self.last_data['f'][-1] - self.last_data['f'][0]
+
+        new_width = total_width * float(val) if val > 0.001 else total_width * 0.001
+        self.ax_freq.set_xlim(center - new_width / 2, center + new_width / 2)
+        self.canvas.draw_idle()
+
     def _on_mouse_press(self, event):
         self.last_click_event = event
 
-        if event.button == 3:
-            ev = event.guiEvent if hasattr(event, 'guiEvent') else None
-            if ev:
-                x_root, y_root = ev.x_root, ev.y_root
-            else:
-                widget = self.canvas.get_tk_widget()
-                x_root, y_root = widget.winfo_pointerx(), widget.winfo_pointery()
-            self.menu.post(x_root, y_root)
+        if event.button == 3:  # Botão direito
+            self.menu.post(event.guiEvent.x_root, event.guiEvent.y_root)
             return
 
         if event.inaxes:
@@ -488,79 +466,47 @@ class SignalGeneratorApp(ctk.CTk):
         if not self.dragging_marker or not event.inaxes:
             return
 
-        # Move linha vertical, se existir
+        # Move marcador vertical, se aplicável
         if hasattr(self.dragging_marker, 'get_xdata') and event.xdata is not None:
             self.dragging_marker.set_xdata([event.xdata])
 
-        # Move linha horizontal, se existir
+        # Move marcador horizontal, se aplicável
         if hasattr(self.dragging_marker, 'get_ydata') and event.ydata is not None:
             self.dragging_marker.set_ydata([event.ydata])
 
-        # Atualiza labels e redesenha imediatamente
+        # Atualiza os rótulos laterais
         self.update_marker_panel()
-        try:
-            self.canvas.draw()
-        except Exception:
-            pass
+        self.canvas.draw_idle()
         self.set_status("🔧 Marcador movido", "cyan")
-
-
-
 
     def add_marker(self, kind):
         ev = self.last_click_event
         if not ev or not ev.inaxes:
             return
 
+        # Escolhe o eixo
         ax = self.ax_time if kind.startswith('time') else self.ax_freq
 
-        # 1) Dentro dos limites visíveis?
-        if kind.endswith('_v') and not (ax.get_xlim()[0] <= ev.xdata <= ax.get_xlim()[1]):
-            return
-        if kind.endswith('_h') and not (ax.get_ylim()[0] <= ev.ydata <= ax.get_ylim()[1]):
-            return
-
-        # 2) No máximo 2 marcadores deste tipo
+        # Limite de 2 marcadores
         if len(self.markers[kind]) >= 2:
             self.set_status("⚠️ Máximo de 2 marcadores por tipo atingido", "orange")
             return
 
-        # 3) Desativa autoscale
-        autos_x, autos_y = ax.get_autoscalex_on(), ax.get_autoscaley_on()
-        ax.set_autoscalex_on(False)
-        ax.set_autoscaley_on(False)
-
-        # 4) Cria linha
+        # Desenha a linha
         if kind.endswith('_v'):
-            line = ax.axvline(
-                x=ev.xdata,
-                linestyle='--',
-                color=('red' if kind.startswith('time') else 'lime'),
-                picker=5
-            )
+            line = ax.axvline(x=ev.xdata, linestyle='--',
+                              color=('red' if kind.startswith('time') else 'lime'),
+                              picker=5)
         else:
-            line = ax.axhline(
-                y=ev.ydata,
-                linestyle='--',
-                color=('red' if kind.startswith('time') else 'lime'),
-                picker=5
-            )
+            line = ax.axhline(y=ev.ydata, linestyle='--',
+                              color=('red' if kind.startswith('time') else 'lime'),
+                              picker=5)
 
-        # 5) Restaura autoscale
-        ax.set_autoscalex_on(autos_x)
-        ax.set_autoscaley_on(autos_y)
-
-        # 6) Armazena, atualiza painel e redesenha
+        # Armazena e redesenha
         self.markers[kind].append(line)
         self.update_marker_panel()
-        try:
-            self.canvas.draw()
-        except Exception:
-            pass
+        self.canvas.draw_idle()
         self.set_status("✅ Marcador adicionado", "lightgreen")
-
-
-
 
     def clear_markers(self, which):
         keys = list(self.markers.keys()) if which == 'all' else [which]
@@ -569,33 +515,7 @@ class SignalGeneratorApp(ctk.CTk):
                 mk.remove()
             self.markers[k].clear()
         self.update_marker_panel()
-        self.canvas.draw()
-
-    # def _format_time(self, seconds):
-    #     """
-    #     Converte segundos em ns/µs/ms/s conforme magnitude.
-    #     """
-    #     if seconds < 1e-6:
-    #         return f"{seconds * 1e9:.2f} ns"
-    #     elif seconds < 1e-3:
-    #         return f"{seconds * 1e6:.2f} µs"
-    #     elif seconds < 1:
-    #         return f"{seconds * 1e3:.2f} ms"
-    #     else:
-    #         return f"{seconds:.2f} s"
-    #
-    # def _format_freq(self, hz):
-    #     """
-    #     Converte Hz em Hz/kHz/MHz/GHz conforme magnitude.
-    #     """
-    #     if hz < 1e3:
-    #         return f"{hz:.1f} Hz"
-    #     elif hz < 1e6:
-    #         return f"{hz / 1e3:.2f} kHz"
-    #     elif hz < 1e9:
-    #         return f"{hz / 1e6:.2f} MHz"
-    #     else:
-    #         return f"{hz / 1e9:.2f} GHz"
+        self.canvas.draw_idle()
 
     def update_marker_panel(self):
         # --- Tempo
@@ -664,28 +584,36 @@ class SignalGeneratorApp(ctk.CTk):
         else:
             return f"{f / 1e9:.2f} GHz"
 
-    def format_time_axis(self):
-        self.ax_time.xaxis.set_major_formatter(FuncFormatter(lambda x, _: self._format_time(x)))
+    def _format_time_axis(self, x, pos):
+        return self._format_time(x)
 
-    def format_freq_axis(self):
-        self.ax_freq.xaxis.set_major_formatter(FuncFormatter(lambda f, _: self._format_freq(f)))
+    def _format_freq_axis(self, f, pos):
+        return self._format_freq(f)
+
     def export_data(self):
-        # ... (código idêntico à versão anterior)
-        if not self.last_data: messagebox.showerror("Erro", "Gere um sinal primeiro."); return
-        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json"), ("CSV", "*.csv")])
-        if not path: return
+        if not self.last_data:
+            messagebox.showerror("Erro", "Gere um sinal primeiro.")
+            return
+
+        path = filedialog.asksaveasfilename(defaultextension=".json",
+                                            filetypes=[("JSON", "*.json"), ("CSV", "*.csv")])
+        if not path:
+            return
+
         try:
             if path.endswith(".json"):
                 with open(path, "w") as f:
                     json.dump({k: v.tolist() for k, v in self.last_data.items()}, f, indent=2)
             else:
                 with open(path, "w", newline="") as f:
-                    writer = csv.writer(f);
-                    writer.writerow(self.last_data.keys());
+                    writer = csv.writer(f)
+                    writer.writerow(self.last_data.keys())
                     writer.writerows(zip(*self.last_data.values()))
-            self.status_bar.configure(text=f"Dados exportados para {path}")
+
+            self.set_status(f"📁 Dados exportados para {path}", "lightblue")
         except Exception as e:
             messagebox.showerror("Erro de Exportação", str(e))
+            self.set_status(f"❌ Erro ao exportar: {str(e)}", "red")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,51 @@
+# Ambiente virtual
+.venv/
+env/
+venv/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de log e temporários
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Configurações do sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Arquivos de build Python
+build/
+dist/
+*.egg-info/
+
+# Arquivos de exportação
+*.csv
+*.json
+*.xlsx
+*.pdf
+*.svg
+
+# Arquivos do matplotlib
+*.png
+
+# Dados grandes opcionais
+/data/
+outputs/
+
+# Arquivos de testes temporários
+tests/__pycache__/
+tests/tmp/
