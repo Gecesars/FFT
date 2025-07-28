@@ -8,10 +8,13 @@ from matplotlib.ticker import FuncFormatter
 from scipy.signal import square, sawtooth, unit_impulse, gausspulse, chirp
 from scipy.fft import fft, fftfreq, fftshift
 from scipy.interpolate import CubicSpline
-from scipy.special import jv, sinc  # Adicionado para novas formas de onda
+from scipy.special import jv
 import csv
 import json
 from concurrent.futures import ThreadPoolExecutor
+import struct
+import os
+import math
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -42,8 +45,11 @@ class SignalGeneratorApp(ctk.CTk):
         }
         self.dragging_marker = None
         self.dragging_type = None
-        self.last_click_event = None
+        self.original_position = None
         self.time_plot_line = None
+        self.freq_plot_line = None
+        self.after_ids = []
+        self.y_scale = 1.0  # Escala de amplitude
 
         self.mod_am = tk.BooleanVar(value=False)
         self.mod_fm = tk.BooleanVar(value=False)
@@ -53,6 +59,15 @@ class SignalGeneratorApp(ctk.CTk):
         self._build_context_menu()
         self._build_marker_panel()
         self._build_status_bar()
+
+        # Configurar tratamento de fechamento
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+    def _on_closing(self):
+        """Cancelar callbacks pendentes ao fechar a janela"""
+        for after_id in self.after_ids:
+            self.after_cancel(after_id)
+        self.destroy()
 
     def _build_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=300, corner_radius=8)
@@ -70,8 +85,9 @@ class SignalGeneratorApp(ctk.CTk):
         self.entry_duration = self._add_entry(frm_gen, "Duração (s):", "0.1")
         self.entry_fc, self.units_fc = self._add_frequency_entry(frm_gen, "Portadora (Fc):", "100")
         self.entry_fs, self.units_fs = self._add_frequency_entry(frm_gen, "Amostragem (Fs):", "20", "kHz")
+        self.entry_vpp = self._add_entry(frm_gen, "Amplitude (Vpp):", "1.0")  # Amplitude pico a pico
 
-        # Lista de formas de onda com 10 adicionais
+        # Lista de formas de onda
         waveforms = [
             "Seno", "Cosseno", "Quadrada", "Triangular", "Dente de Serra", "Pulso",
             "Ruído Branco", "Exp Decaimento", "Passo (step)", "Rampa", "Parábola",
@@ -105,6 +121,9 @@ class SignalGeneratorApp(ctk.CTk):
         self.btn_generate = ctk.CTkButton(frm_cmd, text="Gerar Sinal", command=self.submit_plot_task)
         self.btn_generate.pack(fill="x", padx=10, pady=5)
         ctk.CTkButton(frm_cmd, text="Exportar Dados", command=self.export_data).pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(frm_cmd, text="Importar Forma de Onda (WAV)", command=self.import_wav).pack(fill="x", padx=10,
+                                                                                                  pady=5)
+        ctk.CTkButton(frm_cmd, text="Exportar WAV", command=self.export_wav).pack(fill="x", padx=10, pady=5)
 
     def _add_entry(self, parent, label, default):
         ctk.CTkLabel(parent, text=label).pack(anchor="w", padx=10, pady=(5, 0))
@@ -170,6 +189,7 @@ class SignalGeneratorApp(ctk.CTk):
         self.canvas.mpl_connect('button_press_event', self._on_mouse_press)
         self.canvas.mpl_connect('button_release_event', self._on_mouse_release)
         self.canvas.mpl_connect('motion_notify_event', self._on_mouse_motion)
+        self.canvas.mpl_connect('pick_event', self._on_pick_event)
 
     def _build_context_menu(self):
         self.menu = tk.Menu(self, tearoff=0)
@@ -248,7 +268,9 @@ class SignalGeneratorApp(ctk.CTk):
     def submit_plot_task(self):
         self.btn_generate.configure(state="disabled", text="Gerando...")
         self.set_status("⏳ Iniciando geração de sinal...", "yellow")
-        self.executor.submit(self._compute_and_plot_task)
+        future = self.executor.submit(self._compute_and_plot_task)
+        future.add_done_callback(
+            lambda future: self.after(0, lambda: self.btn_generate.configure(state="normal", text="Gerar Sinal")))
 
     def _compute_and_plot_task(self):
         try:
@@ -260,6 +282,13 @@ class SignalGeneratorApp(ctk.CTk):
             # gera eixo tempo e sinal
             t = np.arange(params['N']) / params['Fs']
             y = self._generate_waveform(params, t)
+
+            # Aplica amplitude
+            try:
+                vpp = float(self.entry_vpp.get())
+                y = y * (vpp / 2)  # Normaliza para Vpp
+            except ValueError:
+                y = y  # Mantém amplitude padrão se entrada inválida
 
             # Aplica modulações apenas se não forem formas de onda pré-moduladas
             if not params['waveform'].startswith("Onda AM") and not params['waveform'].startswith("Onda FM"):
@@ -276,12 +305,9 @@ class SignalGeneratorApp(ctk.CTk):
             self.after(0, self._update_plots)
 
         except Exception as e:
-            self.after(0, lambda: messagebox.showerror("Erro de Cálculo", str(e)))
-            self.set_status(f"❌ Erro: {str(e)}", "red")
-
-        finally:
-            # reativa o botão
-            self.after(0, lambda: self.btn_generate.configure(state="normal", text="Gerar Sinal"))
+            error_msg = str(e)
+            self.after(0, lambda: messagebox.showerror("Erro de Cálculo", error_msg))
+            self.set_status(f"❌ Erro: {error_msg}", "red")
 
     def _validate_inputs(self):
         try:
@@ -361,7 +387,7 @@ class SignalGeneratorApp(ctk.CTk):
             y = np.tan(np.pi * Fc * t)
             return np.clip(y, -10, 10)
 
-        # Novas formas de onda
+        # Formas de onda adicionais
         elif wf == "Sinc":
             return np.sinc(2 * Fc * t)
         elif wf == "Gaussiana":
@@ -383,7 +409,7 @@ class SignalGeneratorApp(ctk.CTk):
         elif wf == "Bessel":
             return jv(0, 2 * np.pi * Fc * t)  # Função de Bessel de ordem 0
 
-        # Mais 10 formas de onda
+        # Mais formas de onda
         elif wf == "Sinc Modulado":
             return np.sinc(2 * Fc * t) * np.sin(2 * np.pi * Fm * t)
         elif wf == "Pulso Gaussiano":
@@ -419,10 +445,118 @@ class SignalGeneratorApp(ctk.CTk):
         if p['fm_on']:
             # Para FM, usamos a integral do sinal modulador
             phase = 2 * np.pi * p['Fc'] * t + 2 * np.pi * p['fm_dev'] * np.cumsum(np.sin(2 * np.pi * p['Fm'] * t)) * (
-                        1 / p['Fs'])
+                    1 / p['Fs'])
             y = np.sin(phase)
 
         return y
+
+    def import_wav(self):
+        """Importa um arquivo WAV do osciloscópio Fnirsi 1014D"""
+        filepath = filedialog.askopenfilename(filetypes=[("WAV files", "*.wav")])
+        if not filepath:
+            return
+
+        try:
+            # Lê todo o arquivo como bytes
+            with open(filepath, 'rb') as f:
+                all_bytes = f.read()
+
+            # Verifica se o arquivo tem pelo menos 64 bytes de cabeçalho
+            if len(all_bytes) < 64:
+                raise ValueError("Arquivo muito pequeno para ser um WAV do Fnirsi 1014D")
+
+            # Extrai a taxa de amostragem do cabeçalho (bytes 24-27, little-endian)
+            fs_bytes = all_bytes[24:28]
+            if len(fs_bytes) == 4:
+                fs_value = struct.unpack('<I', fs_bytes)[0]  # Unsigned int little-endian
+            else:
+                fs_value = 1000  # Valor padrão se não conseguir extrair
+
+            # Ignora os primeiros 64 bytes (cabeçalho personalizado)
+            raw_data = all_bytes[64:]
+
+            # Garante que o comprimento dos dados é par (2 bytes por amostra)
+            if len(raw_data) % 2 != 0:
+                raw_data = raw_data[:-1]  # Remove último byte se for ímpar
+
+            # Converte para array de int16 (little-endian)
+            y = np.frombuffer(raw_data, dtype='<i2')  # '<i2' = int16 little-endian
+
+            # Normaliza para [-1, 1]
+            y = y.astype(np.float32) / 32768.0
+
+            # Calcula amplitude pico a pico
+            vpp = np.max(y) - np.min(y)
+
+            # Cria vetor de tempo
+            duration = len(y) / fs_value
+            t = np.arange(len(y)) / fs_value
+
+            # FFT
+            Y = fftshift(fft(y))
+            f = fftshift(fftfreq(len(y), 1 / fs_value))
+
+            # Armazena dados
+            self.last_data = {'t': t, 'y': y, 'f': f, 'Y': np.abs(Y)}
+
+            # Atualiza campos de entrada
+            self.after(0, lambda: self.entry_duration.delete(0, tk.END))
+            self.after(0, lambda: self.entry_duration.insert(0, f"{duration:.4f}"))
+            self.after(0, lambda: self.entry_fc.delete(0, tk.END))
+            self.after(0, lambda: self.entry_fc.insert(0, "0"))  # Não sabemos Fc
+            self.after(0, lambda: self.entry_fs.delete(0, tk.END))
+            self.after(0, lambda: self.entry_fs.insert(0, str(fs_value)))
+            self.after(0, lambda: self.units_fs.set("Hz"))
+            self.after(0, lambda: self.entry_vpp.delete(0, tk.END))
+            self.after(0, lambda: self.entry_vpp.insert(0, f"{vpp:.2f}"))
+
+            # Atualiza gráficos
+            self.after(0, self._update_plots)
+            self.set_status(f"✅ Sinal importado: {os.path.basename(filepath)}", "lightgreen")
+
+        except Exception as e:
+            # Corrige o problema de escopo capturando 'e' em uma variável local
+            error_msg = str(e)
+            self.after(0, lambda msg=error_msg: messagebox.showerror("Erro ao importar WAV", msg))
+            self.set_status(f"❌ Erro ao importar: {error_msg}", "red")
+
+    def export_wav(self):
+        """Exporta o sinal atual em formato WAV compatível com Fnirsi 1014D"""
+        if not self.last_data:
+            messagebox.showerror("Erro", "Gere ou importe um sinal primeiro.")
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".wav",
+            filetypes=[("WAV files", "*.wav")]
+        )
+        if not filepath:
+            return
+
+        try:
+            # Obtém dados normalizados para int16
+            y = self.last_data['y']
+            y_int16 = np.int16(y * 32767)
+
+            # Cria cabeçalho padrão de 64 bytes (simulado)
+            header = bytearray(64)
+
+            # Adiciona taxa de amostragem no cabeçalho (bytes 24-27)
+            fs_value = int(float(self.entry_fs.get()) * UNIT_MULTIPLIERS[self.units_fs.get()])
+            fs_bytes = struct.pack('<I', fs_value)  # Unsigned int little-endian
+            header[24:28] = fs_bytes
+
+            # Escreve no arquivo
+            with open(filepath, 'wb') as f:
+                f.write(header)
+                f.write(y_int16.tobytes())
+
+            self.set_status(f"📁 Sinal exportado como WAV: {os.path.basename(filepath)}", "lightblue")
+
+        except Exception as e:
+            error_msg = str(e)
+            messagebox.showerror("Erro ao exportar WAV", error_msg)
+            self.set_status(f"❌ Erro ao exportar: {error_msg}", "red")
 
     def _update_plots(self):
         if not self.last_data:
@@ -431,7 +565,7 @@ class SignalGeneratorApp(ctk.CTk):
         # Salva os marcadores existentes antes de limpar
         saved_markers = self._save_markers_state()
 
-        # Limpa os eixos
+        # Limpa apenas o conteúdo dos eixos, preservando os marcadores
         self.ax_time.clear()
         self.ax_freq.clear()
 
@@ -442,12 +576,23 @@ class SignalGeneratorApp(ctk.CTk):
         self.ax_time.tick_params(colors='white')
         self.ax_time.xaxis.set_major_formatter(FuncFormatter(self._format_time_axis))
 
-        self.ax_freq.plot(self.last_data['f'], self.last_data['Y'], color="orange")
+        # Configura escala fixa para eixo Y do tempo
+        try:
+            vpp = float(self.entry_vpp.get())
+            self.ax_time.set_ylim(-vpp / 2, vpp / 2)
+        except:
+            # Usa escala automática se amplitude inválida
+            self.ax_time.autoscale(axis='y')
+
+        self.freq_plot_line, = self.ax_freq.plot(self.last_data['f'], self.last_data['Y'], color="orange")
         self.ax_freq.set_title("Domínio da Frequência (FFT)", color='white')
         self.ax_freq.set_ylabel("|Y(f)|", color='white')
         self.ax_freq.grid(True, linestyle='--', alpha=0.5)
         self.ax_freq.tick_params(colors='white')
         self.ax_freq.xaxis.set_major_formatter(FuncFormatter(self._format_freq_axis))
+
+        # Configura escala para eixo Y da frequência
+        self.ax_freq.set_ylim(0, np.max(self.last_data['Y']) * 1.1)
 
         # Restaura os marcadores
         self._restore_markers_state(saved_markers)
@@ -492,7 +637,6 @@ class SignalGeneratorApp(ctk.CTk):
         self.ax_freq.set_xlim(self.last_data['f'][0], self.last_data['f'][-1])
         self.zoom_time.set(1.0)
         self.zoom_freq.set(1.0)
-        self.update_time_zoom(1.0)
         self.canvas.draw()
 
     def update_time_zoom(self, val):
@@ -514,6 +658,7 @@ class SignalGeneratorApp(ctk.CTk):
             t_visible = self.last_data['t'][visible_indices]
             y_visible = self.last_data['y'][visible_indices]
 
+            # Usa spline cúbica para interpolação suave
             cs = CubicSpline(t_visible, y_visible)
             t_interp = np.linspace(t_visible[0], t_visible[-1], INTERP_SAMPLES)
             y_interp = cs(t_interp)
@@ -542,15 +687,20 @@ class SignalGeneratorApp(ctk.CTk):
             self.menu.post(event.guiEvent.x_root, event.guiEvent.y_root)
             return
 
-        if event.inaxes:
-            key = 'time' if event.inaxes is self.ax_time else 'freq'
-            for mk in self.markers[f'{key}_v'] + self.markers[f'{key}_h']:
-                contains, _ = mk.contains(event)
-                if contains:
-                    self.dragging_marker = mk
-                    self.dragging_type = key
-                    self.original_position = (event.xdata, event.ydata)
-                    break
+    def _on_pick_event(self, event):
+        """Manipula a seleção de marcadores"""
+        if event.mouseevent.button != 1:  # Apenas botão esquerdo
+            return
+
+        if event.artist in self.markers['time_v'] + self.markers['time_h']:
+            self.dragging_type = 'time'
+        elif event.artist in self.markers['freq_v'] + self.markers['freq_h']:
+            self.dragging_type = 'freq'
+        else:
+            return
+
+        self.dragging_marker = event.artist
+        self.original_position = (event.mouseevent.xdata, event.mouseevent.ydata)
 
     def _on_mouse_release(self, event):
         self.dragging_marker = None
@@ -562,11 +712,12 @@ class SignalGeneratorApp(ctk.CTk):
             return
 
         # Atualiza a posição do marcador
-        if hasattr(self.dragging_marker, 'get_xdata') and event.xdata is not None:
-            self.dragging_marker.set_xdata([event.xdata])
-
-        if hasattr(self.dragging_marker, 'get_ydata') and event.ydata is not None:
-            self.dragging_marker.set_ydata([event.ydata])
+        if self.dragging_marker in self.markers['time_v'] or self.dragging_marker in self.markers['freq_v']:
+            if event.xdata is not None:
+                self.dragging_marker.set_xdata([event.xdata])
+        else:
+            if event.ydata is not None:
+                self.dragging_marker.set_ydata([event.ydata])
 
         # Atualiza o painel de informações
         self.update_marker_panel()
@@ -619,8 +770,7 @@ class SignalGeneratorApp(ctk.CTk):
 
     def update_marker_panel(self):
         # --- Tempo
-        tv = sorted([m.get_xdata()[0] for m in self.markers['time_v'] if
-                     self.ax_time.get_xlim()[0] <= m.get_xdata()[0] <= self.ax_time.get_xlim()[1]])[:2]
+        tv = sorted([m.get_xdata()[0] for m in self.markers['time_v']])[:2]
         if len(tv) == 2:
             self.lbl_x1.configure(text=f"X1: {self._format_time(tv[0])}")
             self.lbl_x2.configure(text=f"X2: {self._format_time(tv[1])}")
@@ -630,8 +780,7 @@ class SignalGeneratorApp(ctk.CTk):
             self.lbl_x2.configure(text="X2: ---")
             self.lbl_dx.configure(text="ΔX: ---")
 
-        th = sorted([m.get_ydata()[0] for m in self.markers['time_h'] if
-                     self.ax_time.get_ylim()[0] <= m.get_ydata()[0] <= self.ax_time.get_ylim()[1]])[:2]
+        th = sorted([m.get_ydata()[0] for m in self.markers['time_h']])[:2]
         if len(th) == 2:
             self.lbl_y1.configure(text=f"Y1: {th[0]:.3f}")
             self.lbl_y2.configure(text=f"Y2: {th[1]:.3f}")
@@ -642,8 +791,7 @@ class SignalGeneratorApp(ctk.CTk):
             self.lbl_dy.configure(text="ΔY: ---")
 
         # --- Frequência
-        fv = sorted([m.get_xdata()[0] for m in self.markers['freq_v'] if
-                     self.ax_freq.get_xlim()[0] <= m.get_xdata()[0] <= self.ax_freq.get_xlim()[1]])[:2]
+        fv = sorted([m.get_xdata()[0] for m in self.markers['freq_v']])[:2]
         if len(fv) == 2:
             self.lbl_f1.configure(text=f"F1: {self._format_freq(fv[0])}")
             self.lbl_f2.configure(text=f"F2: {self._format_freq(fv[1])}")
@@ -653,8 +801,7 @@ class SignalGeneratorApp(ctk.CTk):
             self.lbl_f2.configure(text="F2: ---")
             self.lbl_df.configure(text="ΔF: ---")
 
-        fh = sorted([m.get_ydata()[0] for m in self.markers['freq_h'] if
-                     self.ax_freq.get_ylim()[0] <= m.get_ydata()[0] <= self.ax_freq.get_ylim()[1]])[:2]
+        fh = sorted([m.get_ydata()[0] for m in self.markers['freq_h']])[:2]
         if len(fh) == 2:
             self.lbl_m1.configure(text=f"|Y1|: {fh[0]:.2f}")
             self.lbl_m2.configure(text=f"|Y2|: {fh[1]:.2f}")
