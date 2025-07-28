@@ -1,106 +1,106 @@
-# Gerador de Sinais Avançado com FFT, Modulação e Análise Interativa
+# 🎛️ FFT - Analisador Avançado de Sinais
 
-Este aplicativo Python fornece um ambiente gráfico completo para geração, visualização e análise de sinais no domínio do tempo e frequência. Com recursos profissionais como interpolação adaptativa, marcadores interativos, modulação AM/FM e exportação de dados, o sistema é ideal para engenheiros, pesquisadores e estudantes de processamento de sinais.
+Este repositório contém um analisador gráfico interativo de sinais com suporte completo a FFT (Transformada Rápida de Fourier), geração de formas de onda, exportação de dados e manipulação com marcadores.
 
----
-
-## 🎯 Funcionalidades Principais
-
-### 🖥️ Interface Moderna
-
-- Construída com `CustomTkinter` (modo escuro responsivo)
-- Layout dividido em:
-  - Painel de parâmetros (esquerda)
-  - Área de gráficos (`tempo` e `FFT`)
-  - Painel lateral com marcadores
-  - Barra de status no rodapé
-
-### 📈 Visualização e Análise
-
-- Geração de sinais básicos: Senoidal, Quadrado, Triangular, Impulso, Passo, Aleatório
-- Modulação AM/FM com parâmetros configuráveis (ganho, desvio)
-- Transformada de Fourier (FFT) com janelamento e normalização
-- Interpolação automática por `CubicSpline` ao aplicar zoom (melhora a suavidade)
-- Ajuste dinâmico de frequência com sliders
-
-### 📌 Marcadores Interativos
-
-- Até 2 marcadores verticais e 2 horizontais por gráfico
-- Arrastáveis com o mouse
-- Valores de tempo/frequência/diferença atualizados em tempo real
-- Respeitam os limites do gráfico visível
-- Painel lateral com Δt, Δf, Δy, Δ|Y| organizados
-
-### 💾 Entrada e Exportação de Dados
-
-- Importa sinais de arquivos `.wav`
-- Exporta dados de tempo (`t`, `y`) e frequência (`f`, `|Y|`) em `.csv` e `.json`
-- Normalização e detecção automática de taxa de amostragem
-
-### 💬 Barra de Status
-
-- Mensagens claras para o usuário
-- Exibe estados como: marcador adicionado, erro de limite, exportação concluída etc.
+Desenvolvido em Python com interface `CustomTkinter`, o projeto é ideal para engenheiros, pesquisadores, estudantes e entusiastas que desejam uma ferramenta prática para análise no domínio do tempo e da frequência.
 
 ---
 
-## 📁 Estrutura do Projeto
+## 🧠 Destaques do Projeto
+
+- ✅ Geração de sinais: Senoidal, Quadrada, Pulso, Dente de Serra, Ruído Branco, Chirp
+- ✅ Modulação AM e FM com ajuste de portadora
+- ✅ FFT com janelas: Hanning, Hamming, Blackman, Gaussian, entre outras
+- ✅ Interpolação cúbica para sinais de baixa resolução
+- ✅ Marcadores interativos com leitura de Δx, Δy, Δf, Δ|Y|
+- ✅ Visualização simultânea nos domínios do tempo e da frequência
+- ✅ Exportação de dados em `.csv` e `.json`
+- ✅ Interface com múltiplos painéis (barras, status, controles)
+- ✅ Suporte a arquivos `.wav` e análise de dados amostrados
+- ✅ Zoom adaptativo com ajuste de resolução espectral
+- ✅ Detecção automática de frequência principal (pico do espectro)
+- ✅ Ambiente de código limpo, modular e escalável
+
+---
+
+## 🚀 Arquivo Principal
+
+O ponto de entrada da aplicação é:
+
+```bash
+python main.py
+```
+
+Esse arquivo centraliza a inicialização da interface, definição dos eventos e criação das threads de análise e exportação.
+
+---
+
+## 🗂️ Estrutura de Diretórios
 
 ```
-📂 FFT Signal Generator
-├── V8.py               # Arquivo principal
-├── README.md           # Este documento
-├── requirements.txt    # Dependências do projeto
-├── examples/           # Exemplos de sinais ou .wav
-└── export/             # Arquivos exportados (.csv, .json)
+FFT/
+├── main.py                 # Arquivo principal da aplicação (GUI + núcleo lógico)
+├── versao15.py             # Versão completa com mais de 721 linhas (base de desenvolvimento)
+├── utils/                  # Módulos auxiliares e lógicas específicas
+├── assets/                 # Arquivos exportados, temporários ou amostrados
+├── README.md               # Documento descritivo
+├── requirements.txt        # Lista de dependências
+└── .gitignore              # Exclusões de controle de versão
 ```
 
 ---
 
-## ⚙️ Requisitos
+## 🔧 Requisitos
 
-- Python 3.9 ou superior
-- Bibliotecas:
-  - `customtkinter`
-  - `matplotlib`
-  - `numpy`
-  - `scipy`
-  - `soundfile` (para leitura de WAV)
-  - `json`, `csv`, `tkinter` (nativos)
+- Python 3.9+
 
-Instalação recomendada:
+### 📦 Instale as dependências
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
-## 🚀 Execução
+Ou manualmente:
 
 ```bash
-python V8.py
+pip install customtkinter matplotlib numpy scipy pillow
 ```
 
 ---
 
-## 🔍 Testes Recomendados
+## 📊 Exemplo de uso
 
-- Modificar tipo de sinal e observar a FFT
-- Ativar modulação AM ou FM com sliders
-- Adicionar dois marcadores verticais e horizontais
-- Arrastar marcadores e verificar valores no painel lateral
-- Exportar dados via botão “Exportar CSV”
-
----
-
-## 🧑‍💻 Autor
-
-**Geraldo César Simão**  
-Engenheiro em Telecomunicações, especialista em RF, processamento de sinais e eletrônica aplicada.
+1. Selecione "Gerar Sinal Senoidal" com 10 kHz
+2. Escolha "FFT com janela Hamming"
+3. Marque o pico principal e visualize Δf
+4. Exporte os dados para `resultados.csv`
 
 ---
 
-## 📜 Licença
+## 💡 Aplicações
 
-Uso livre para fins acadêmicos e pessoais. Para uso comercial ou institucional, entre em contato com o autor.
+- Análise espectral de sinais laboratoriais
+- Processamento digital de sinais (DSP)
+- Verificação de formas de onda simuladas
+- Ensino e demonstrações didáticas
+- Comparação entre sinais reais e teóricos
+
+---
+
+## 📞 Contato do Autor
+
+- **Nome:** Geraldo César Simão
+- **Telefone / WhatsApp:** +55 35 91017-3582
+- **E-mails:**
+  - gecesars@gmail.com
+  - geraldo_cesar_si@hotmail.com
+
+---
+
+## 📄 Licença
+
+Distribuído sob a Licença MIT. Consulte o arquivo `LICENSE` para mais detalhes.
+
+---
+
+**Este projeto está em constante evolução. Contribuições, testes e sugestões são bem-vindos!**

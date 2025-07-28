@@ -59,6 +59,7 @@ class SignalGeneratorApp(ctk.CTk):
         self._build_sidebar()
         self._build_plot_area()
         self._build_context_menu()
+        self._build_marker_panel()
         self._build_analysis_panels()
         self._build_status_bar()
 
@@ -203,16 +204,58 @@ class SignalGeneratorApp(ctk.CTk):
         self.menu.add_separator()
         self.menu.add_command(label="Limpar Todos Marcadores", command=lambda: self.clear_markers('all'))
 
-    def _build_analysis_panels(self):
+    def _build_marker_panel(self):
         # Container à direita da área dos gráficos
         self.side_panel = ctk.CTkFrame(self, width=350, corner_radius=6)
         self.side_panel.grid(row=0, column=2, padx=(0, 10), pady=10, sticky="nsew")
         self.side_panel.grid_propagate(False)
-        self.side_panel.grid_columnconfigure(0, weight=1)
-        self.side_panel.grid_rowconfigure(0, weight=1)
+        self.side_panel.grid_rowconfigure(1, weight=1)  # Dá espaço para o painel de análise
 
-        # Notebook para organizar as análises
-        self.analysis_notebook = ctk.CTkTabview(self.side_panel)
+        # Frame para marcadores
+        marker_frame = ctk.CTkFrame(self.side_panel)
+        marker_frame.pack(fill="x", pady=(0, 10), padx=5)
+
+        # --- Marcadores de Tempo
+        frm_time = ctk.CTkFrame(marker_frame, fg_color="#1E1E1E", corner_radius=6)
+        frm_time.pack(fill="x", pady=(0, 5), padx=5)
+        ctk.CTkLabel(frm_time, text="Marcadores de Tempo", text_color="cyan", font=("Arial", 12, "bold")).pack(
+            anchor="w", pady=2, padx=8)
+
+        self.lbl_x1 = ctk.CTkLabel(frm_time, text="X1: ---")
+        self.lbl_x1.pack(anchor="w", padx=8)
+        self.lbl_x2 = ctk.CTkLabel(frm_time, text="X2: ---")
+        self.lbl_x2.pack(anchor="w", padx=8)
+        self.lbl_dx = ctk.CTkLabel(frm_time, text="ΔX: ---")
+        self.lbl_dx.pack(anchor="w", padx=8, pady=(0, 5))
+        self.lbl_y1 = ctk.CTkLabel(frm_time, text="Y1: ---")
+        self.lbl_y1.pack(anchor="w", padx=8)
+        self.lbl_y2 = ctk.CTkLabel(frm_time, text="Y2: ---")
+        self.lbl_y2.pack(anchor="w", padx=8)
+        self.lbl_dy = ctk.CTkLabel(frm_time, text="ΔY: ---")
+        self.lbl_dy.pack(anchor="w", padx=8)
+
+        # --- Marcadores de Frequência
+        frm_freq = ctk.CTkFrame(marker_frame, fg_color="#1E1E1E", corner_radius=6)
+        frm_freq.pack(fill="x", pady=(0, 10), padx=5)
+        ctk.CTkLabel(frm_freq, text="Marcadores de Frequência", text_color="orange", font=("Arial", 12, "bold")).pack(
+            anchor="w", pady=2, padx=8)
+
+        self.lbl_f1 = ctk.CTkLabel(frm_freq, text="F1: ---")
+        self.lbl_f1.pack(anchor="w", padx=8)
+        self.lbl_f2 = ctk.CTkLabel(frm_freq, text="F2: ---")
+        self.lbl_f2.pack(anchor="w", padx=8)
+        self.lbl_df = ctk.CTkLabel(frm_freq, text="ΔF: ---")
+        self.lbl_df.pack(anchor="w", padx=8, pady=(0, 5))
+        self.lbl_m1 = ctk.CTkLabel(frm_freq, text="|Y1|: ---")
+        self.lbl_m1.pack(anchor="w", padx=8)
+        self.lbl_m2 = ctk.CTkLabel(frm_freq, text="|Y2|: ---")
+        self.lbl_m2.pack(anchor="w", padx=8)
+        self.lbl_dm = ctk.CTkLabel(frm_freq, text="Δ|Y|: ---")
+        self.lbl_dm.pack(anchor="w", padx=8)
+
+    def _build_analysis_panels(self):
+        # Container para abas de análise (abaixo do painel de marcadores)
+        self.analysis_notebook = ctk.CTkTabview(self.side_panel, height=300)
         self.analysis_notebook.pack(fill="both", expand=True, padx=5, pady=5)
 
         # Aba de análise de tempo
