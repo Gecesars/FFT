@@ -26,9 +26,19 @@ ctk.set_default_color_theme("blue")
 INTERP_THRESHOLD = 100
 INTERP_SAMPLES = 500
 UNIT_MULTIPLIERS = {"Hz": 1, "kHz": 1e3, "MHz": 1e6, "GHz": 1e9}
-WAV_HEADER_SIZE = 64
-WAV_DATA_SIZE = 3000  # 1500 amostras * 2 bytes
 WAV_TOTAL_SIZE = 15360  # Tamanho total do arquivo para compatibilidade
+
+# Escalas pré-definidas FNIRSI
+VOLT_LIST = [[5.0, "V", 1], [2.5, "V", 1], [1.0, "V", 1], [500, "mV", 0.001],
+             [200, "mV", 0.001], [100, "mV", 0.001], [50, "mV", 0.001]]
+
+TIME_LIST = [[50, "S", 1], [20, "S", 1], [10, "S", 1], [5, "S", 1], [2, "S", 1], [1, "S", 1],
+             [500, "mS", 0.001], [200, "mS", 0.001], [100, "mS", 0.001], [50, "mS", 0.001],
+             [20, "mS", 0.001], [10, "mS", 0.001], [5, "mS", 0.001], [2, "mS", 0.001], [1, "mS", 0.001],
+             [500, "uS", 1e-6], [200, "uS", 1e-6], [100, "uS", 1e-6], [50, "uS", 1e-6], [20, "uS", 1e-6],
+             [10, "uS", 1e-6], [5, "uS", 1e-6], [2, "uS", 1e-6], [1, "uS", 1e-6],
+             [500, "nS", 1e-9], [200, "nS", 1e-9], [100, "nS", 1e-9], [50, "nS", 1e-9], [20, "nS", 1e-9],
+             [10, "nS", 1e-9]]
 
 
 class SignalGeneratorApp(ctk.CTk):
@@ -174,10 +184,6 @@ class SignalGeneratorApp(ctk.CTk):
         ctrl_frame = ctk.CTkFrame(plot_frame, height=40)
         ctrl_frame.pack(fill="x", pady=(0, 5))
 
-        # Frame para sliders de escala Y
-        self.y_scale_frame = ctk.CTkFrame(plot_frame, width=40)
-        self.y_scale_frame.pack(side="right", fill="y", padx=(0, 5), pady=5)
-
         # Criação dos gráficos
         self.fig, (self.ax_time, self.ax_freq) = plt.subplots(2, 1, facecolor="#2B2B2B")
         self.ax_time.set_facecolor("#3C3C3C")
@@ -186,15 +192,19 @@ class SignalGeneratorApp(ctk.CTk):
         self.canvas = FigureCanvasTkAgg(self.fig, master=graph_frame)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
-        # Sliders de escala Y
-        ctk.CTkLabel(self.y_scale_frame, text="Escala Tempo").pack(pady=(5, 0))
-        self.scale_time = ctk.CTkSlider(self.y_scale_frame, from_=0.1, to=5.0,
+        # Frame para sliders de escala Y (agora à esquerda)
+        y_scale_frame = ctk.CTkFrame(plot_frame, width=40)
+        y_scale_frame.pack(side="left", fill="y", padx=(5, 0), pady=5)
+
+        # Sliders de escala Y (agora à esquerda)
+        ctk.CTkLabel(y_scale_frame, text="Escala Tempo").pack(pady=(5, 0))
+        self.scale_time = ctk.CTkSlider(y_scale_frame, from_=0.1, to=5.0,
                                         orientation="vertical", command=self.update_time_scale)
         self.scale_time.set(1.0)
         self.scale_time.pack(fill="y", expand=True, pady=5, padx=5)
 
-        ctk.CTkLabel(self.y_scale_frame, text="Escala Freq").pack(pady=(5, 0))
-        self.scale_freq = ctk.CTkSlider(self.y_scale_frame, from_=0.1, to=5.0,
+        ctk.CTkLabel(y_scale_frame, text="Escala Freq").pack(pady=(5, 0))
+        self.scale_freq = ctk.CTkSlider(y_scale_frame, from_=0.1, to=5.0,
                                         orientation="vertical", command=self.update_freq_scale)
         self.scale_freq.set(1.0)
         self.scale_freq.pack(fill="y", expand=True, pady=5, padx=5)
@@ -350,8 +360,10 @@ class SignalGeneratorApp(ctk.CTk):
         for label_text, var in metrics:
             frame = ctk.CTkFrame(time_frame, fg_color="transparent")
             frame.pack(fill="x", padx=5, pady=2)
-            ctk.CTkLabel(frame, text=label_text, width=220).pack(side="left", anchor="w")
-            ctk.CTkLabel(frame, textvariable=var, width=100).pack(side="right", anchor="e")
+            lbl = ctk.CTkLabel(frame, text=label_text, width=220, anchor="w")
+            lbl.pack(side="left", anchor="w")
+            val = ctk.CTkLabel(frame, textvariable=var, width=100, anchor="e")
+            val.pack(side="right", anchor="e")
 
         # --- Painel de Análise de Frequência ---
         freq_frame = ctk.CTkScrollableFrame(self.freq_analysis_tab)
@@ -392,8 +404,10 @@ class SignalGeneratorApp(ctk.CTk):
         for label_text, var in metrics:
             frame = ctk.CTkFrame(freq_frame, fg_color="transparent")
             frame.pack(fill="x", padx=5, pady=2)
-            ctk.CTkLabel(frame, text=label_text, width=220).pack(side="left", anchor="w")
-            ctk.CTkLabel(frame, textvariable=var, width=100).pack(side="right", anchor="e")
+            lbl = ctk.CTkLabel(frame, text=label_text, width=220, anchor="w")
+            lbl.pack(side="left", anchor="w")
+            val = ctk.CTkLabel(frame, textvariable=var, width=100, anchor="e")
+            val.pack(side="right", anchor="e")
 
     def _build_status_bar(self):
         self.status_bar = ctk.CTkLabel(
@@ -601,62 +615,122 @@ class SignalGeneratorApp(ctk.CTk):
 
         return y
 
+    def _read_wav_file(self, filepath):
+        """Lê o arquivo WAV e retorna o cabeçalho e buffers de dados"""
+        with open(filepath, 'rb') as f:
+            header = f.read(208)  # Cabeçalho de 208 bytes
+
+            # Posiciona e lê os dados do canal 1
+            f.seek(1000)
+            data_ch1 = f.read(3000)
+
+            # Posiciona e lê os dados do canal 2
+            f.seek(4000)
+            data_ch2 = f.read(3000)
+
+        return header, [data_ch1, data_ch2]
+
+    def _parse_header(self, header_bytes):
+        """Decodifica o cabeçalho do WAV do Fnirsi"""
+        volt_scale = []
+        for x in range(2):  # Para cada canal
+            # Índice da escala de tensão (bytes 4 e 14)
+            scale_idx = header_bytes[4 + x * 10]
+            if scale_idx < len(VOLT_LIST):
+                scale = VOLT_LIST[scale_idx]
+            else:
+                scale = VOLT_LIST[0]  # Default se índice inválido
+            volt_scale.append(scale)
+
+        # Índice da escala de tempo (byte 22)
+        time_idx = header_bytes[22]
+        if time_idx < len(TIME_LIST):
+            ts = TIME_LIST[time_idx]
+        else:
+            ts = TIME_LIST[0]  # Default se índice inválido
+
+        return volt_scale, ts[2]  # Retorna escalas de tensão e multiplicador de tempo
+
+    def _parse_channel_data(self, data_bytes, scale):
+        """Decodifica os dados de um canal específico"""
+        values = []
+        for i in range(1500):  # 1500 amostras por canal
+            # Cada amostra são 2 bytes (little-endian)
+            byte1 = data_bytes[i * 2]
+            byte2 = data_bytes[i * 2 + 1]
+
+            # Converte para valor numérico
+            val = (byte1 + 256 * byte2 - 200) * scale[0] / 50.0
+            values.append(val)
+
+        return values
+
+    def _show_wav_preview(self, t, y, filename):
+        """Mostra uma prévia do sinal WAV em uma janela modal"""
+        preview = ctk.CTkToplevel(self)
+        preview.title(f"Visualização do Sinal: {filename}")
+        preview.geometry("800x600")
+        preview.transient(self)
+        preview.grab_set()
+
+        fig = plt.Figure(figsize=(8, 6), dpi=100)
+        ax = fig.add_subplot(111)
+        ax.plot(t, y, 'b-')
+        ax.set_title(f"Forma de Onda: {filename}")
+        ax.set_xlabel('Tempo (s)')
+        ax.set_ylabel('Amplitude')
+        ax.grid(True)
+
+        canvas = FigureCanvasTkAgg(fig, master=preview)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        btn_frame = ctk.CTkFrame(preview)
+        btn_frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkButton(btn_frame, text="Fechar", command=preview.destroy).pack(side="right")
+
     def import_wav(self):
-        """Importa um arquivo WAV do osciloscópio Fnirsi 1014D"""
+        """Importa e decodifica arquivo WAV do Fnirsi"""
         filepath = filedialog.askopenfilename(filetypes=[("WAV files", "*.wav")])
         if not filepath:
             return
 
         try:
-            # Lê todo o arquivo como bytes
-            with open(filepath, 'rb') as f:
-                all_bytes = f.read()
+            # Lê o arquivo WAV
+            header, data_buffers = self._read_wav_file(filepath)
 
-            # Verifica se o arquivo tem pelo menos 64 bytes de cabeçalho
-            if len(all_bytes) < WAV_HEADER_SIZE:
-                raise ValueError("Arquivo muito pequeno para ser um WAV do Fnirsi 1014D")
+            # Decodifica o cabeçalho
+            volt_scale, time_multiplier = self._parse_header(header)
 
-            # Extrai a taxa de amostragem do cabeçalho (bytes 24-27, little-endian)
-            fs_bytes = all_bytes[24:28]
-            if len(fs_bytes) == 4:
-                fs_value = struct.unpack('<I', fs_bytes)[0]  # Unsigned int little-endian
-            else:
-                fs_value = 1000  # Valor padrão se não conseguir extrair
+            # Decodifica os dados dos canais
+            ch1_data = self._parse_channel_data(data_buffers[0], volt_scale[0])
+            ch2_data = self._parse_channel_data(data_buffers[1], volt_scale[1])
 
-            # Ignora os primeiros 64 bytes (cabeçalho personalizado)
-            raw_data = all_bytes[WAV_HEADER_SIZE:WAV_HEADER_SIZE + WAV_DATA_SIZE]
+            # Mostra prévia do sinal em janela modal
+            t = np.arange(len(ch1_data)) * time_multiplier
+            self._show_wav_preview(t, ch1_data, os.path.basename(filepath))
 
-            # Garante que o comprimento dos dados é par (2 bytes por amostra)
-            if len(raw_data) % 2 != 0:
-                raw_data = raw_data[:-1]  # Remove último byte se for ímpar
-
-            # Converte para array de int16 (little-endian)
-            y = np.frombuffer(raw_data, dtype='<i2')  # '<i2' = int16 little-endian
-
-            # Normaliza para [-1, 1]
-            y = y.astype(np.float32) / 32768.0
-
-            # Calcula amplitude pico a pico
-            vpp = np.max(y) - np.min(y)
-
-            # Cria vetor de tempo
-            duration = len(y) / fs_value
-            t = np.arange(len(y)) / fs_value
+            # Calcula parâmetros do sinal
+            N = len(ch1_data)
+            t = np.arange(N) * time_multiplier  # Vetor de tempo
+            Fs = 1 / time_multiplier  # Frequência de amostragem
+            vpp = max(ch1_data) - min(ch1_data)  # Tensão pico a pico
 
             # FFT
-            Y = fftshift(fft(y))
-            f = fftshift(fftfreq(len(y), 1 / fs_value))
+            Y = fftshift(fft(ch1_data))
+            f = fftshift(fftfreq(N, 1 / Fs))
 
-            # Armazena dados
-            self.last_data = {'t': t, 'y': y, 'f': f, 'Y': np.abs(Y)}
+            # Salva os dados
+            self.last_data = {'t': t, 'y': ch1_data, 'f': f, 'Y': np.abs(Y)}
 
             # Atualiza campos de entrada
             self.after(0, lambda: self.entry_duration.delete(0, tk.END))
-            self.after(0, lambda: self.entry_duration.insert(0, f"{duration:.4f}"))
+            self.after(0, lambda: self.entry_duration.insert(0, f"{t[-1]:.4f}"))
             self.after(0, lambda: self.entry_fc.delete(0, tk.END))
             self.after(0, lambda: self.entry_fc.insert(0, "0"))  # Não sabemos Fc
             self.after(0, lambda: self.entry_fs.delete(0, tk.END))
-            self.after(0, lambda: self.entry_fs.insert(0, str(fs_value)))
+            self.after(0, lambda: self.entry_fs.insert(0, str(Fs)))
             self.after(0, lambda: self.units_fs.set("Hz"))
             self.after(0, lambda: self.entry_vpp.delete(0, tk.END))
             self.after(0, lambda: self.entry_vpp.insert(0, f"{vpp:.2f}"))
@@ -666,10 +740,22 @@ class SignalGeneratorApp(ctk.CTk):
             self.after(0, self.update_analysis_panels)
             self.set_status(f"✅ Sinal importado: {os.path.basename(filepath)}", "lightgreen")
 
+            # Salva como JSON
+            json_path = os.path.splitext(filepath)[0] + ".json"
+            with open(json_path, 'w') as f:
+                json.dump({
+                    'time_multiplier': time_multiplier,
+                    'voltage_scale': volt_scale[0][0],
+                    'voltage_unit': volt_scale[0][1],
+                    'time_values': t.tolist(),
+                    'signal_values': ch1_data
+                }, f, indent=2)
+
+            self.set_status(f"📊 Dados salvos em: {json_path}", "lightblue")
+
         except Exception as e:
-            # Corrige o problema de escopo capturando 'e' em uma variável local
             error_msg = str(e)
-            self.after(0, lambda msg=error_msg: messagebox.showerror("Erro ao importar WAV", msg))
+            self.after(0, lambda: messagebox.showerror("Erro ao importar WAV", error_msg))
             self.set_status(f"❌ Erro ao importar: {error_msg}", "red")
 
     def export_wav(self):
@@ -700,20 +786,16 @@ class SignalGeneratorApp(ctk.CTk):
             # Taxa de amostragem
             fs_value = int(float(self.entry_fs.get()) * UNIT_MULTIPLIERS[self.units_fs.get()])
 
-            # Cria cabeçalho padrão de 64 bytes
-            header = bytearray(WAV_HEADER_SIZE)
-
-            # Adiciona taxa de amostragem no cabeçalho (bytes 24-27)
-            fs_bytes = struct.pack('<I', fs_value)  # Unsigned int little-endian
-            header[24:28] = fs_bytes
+            # Cria cabeçalho padrão de 208 bytes
+            header = bytearray(208)
 
             # Preenche o arquivo com zeros até o tamanho total
             file_data = bytearray(WAV_TOTAL_SIZE)
-            file_data[0:WAV_HEADER_SIZE] = header
+            file_data[0:208] = header
 
             # Adiciona os dados (1500 amostras de 16 bits)
             data_bytes = y_int16.tobytes()
-            file_data[WAV_HEADER_SIZE:WAV_HEADER_SIZE + len(data_bytes)] = data_bytes
+            file_data[1000:1000 + len(data_bytes)] = data_bytes  # Canal 1
 
             # Escreve no arquivo
             with open(filepath, 'wb') as f:
@@ -1064,12 +1146,16 @@ class SignalGeneratorApp(ctk.CTk):
 
             # Taxa de cruzamento por zero
             zero_crossings = np.where(np.diff(np.sign(y)))[0]
-            zero_crossing_rate = len(zero_crossings) / (t[-1] - t[0])
-            self.time_analysis_results['zero_crossing'].set(f"{zero_crossing_rate:.2f} Hz")
+            if len(zero_crossings) > 0:
+                zero_crossing_rate = len(zero_crossings) / (t[-1] - t[0])
+                self.time_analysis_results['zero_crossing'].set(f"{zero_crossing_rate:.2f} Hz")
+            else:
+                self.time_analysis_results['zero_crossing'].set("0 Hz")
 
             # Frequência estimada
             if len(zero_crossings) > 1:
-                avg_period = np.mean(np.diff(t[zero_crossings])) * 2
+                periods = np.diff(t[zero_crossings])
+                avg_period = np.mean(periods) * 2
                 freq_est = 1 / avg_period if avg_period > 0 else 0
                 self.time_analysis_results['frequency'].set(f"{freq_est:.2f} Hz")
             else:
@@ -1077,9 +1163,13 @@ class SignalGeneratorApp(ctk.CTk):
 
             # Duty cycle (apenas para ondas quadradas)
             if self.waveform.get().startswith("Quadrada") or self.waveform.get().startswith("Pulso"):
-                positive_samples = np.sum(y > (np.max(y) * 0.5))
-                duty_cycle = positive_samples / len(y) * 100
-                self.time_analysis_results['duty_cycle'].set(f"{duty_cycle:.1f}%")
+                if vpp > 0:
+                    threshold = (np.max(y) + np.min(y)) / 2
+                    positive_samples = np.sum(y > threshold)
+                    duty_cycle = positive_samples / len(y) * 100
+                    self.time_analysis_results['duty_cycle'].set(f"{duty_cycle:.1f}%")
+                else:
+                    self.time_analysis_results['duty_cycle'].set("N/A")
             else:
                 self.time_analysis_results['duty_cycle'].set("N/A")
 
@@ -1088,65 +1178,100 @@ class SignalGeneratorApp(ctk.CTk):
             self.time_analysis_results['peak_to_rms'].set(f"{peak_to_rms:.4f}")
 
             # Curtose
-            kurt = kurtosis(y)
-            self.time_analysis_results['kurtosis'].set(f"{kurt:.4f}")
+            if len(y) > 3:
+                kurt_val = kurtosis(y)
+                self.time_analysis_results['kurtosis'].set(f"{kurt_val:.4f}")
+            else:
+                self.time_analysis_results['kurtosis'].set("---")
 
             # Assimetria (Skewness)
-            skew_val = skew(y)
-            self.time_analysis_results['skewness'].set(f"{skew_val:.4f}")
+            if len(y) > 2:
+                skew_val = skew(y)
+                self.time_analysis_results['skewness'].set(f"{skew_val:.4f}")
+            else:
+                self.time_analysis_results['skewness'].set("---")
 
         # Análise no domínio da frequência
         if len(Y) > 0:
-            # Encontra a frequência fundamental
-            fundamental_idx = np.argmax(Y)
-            fundamental_freq = f[fundamental_idx]
-            fundamental_amp = Y[fundamental_idx]
+            # Filtra apenas frequências positivas
+            positive_mask = f > 0
+            f_positive = f[positive_mask]
+            Y_positive = Y[positive_mask]
+
+            # Encontra a frequência fundamental (maior magnitude)
+            fundamental_idx = np.argmax(Y_positive)
+            fundamental_freq = f_positive[fundamental_idx]
+            fundamental_amp = Y_positive[fundamental_idx]
             self.freq_analysis_results['fundamental'].set(f"{self._format_freq(fundamental_freq)}")
             self.freq_analysis_results['fund_amp'].set(f"{fundamental_amp:.4f}")
 
-            # Encontra harmônicos
-            peaks, _ = find_peaks(Y, height=np.max(Y) * 0.05, distance=10)
-            harmonic_peaks = peaks[np.argsort(Y[peaks])[::-1]]
+            # Encontra harmônicos (excluindo o fundamental)
+            harmonic_mask = (f_positive > fundamental_freq * 0.9) & (f_positive < f_positive[-1])
+            harmonic_freqs = f_positive[harmonic_mask]
+            harmonic_amps = Y_positive[harmonic_mask]
+
+            # Identifica picos significativos
+            peaks, _ = find_peaks(harmonic_amps, height=fundamental_amp * 0.05)
+            harmonic_peaks = peaks[np.argsort(harmonic_amps[peaks])[::-1]]
 
             # Calcula THD (Total Harmonic Distortion)
-            if len(harmonic_peaks) > 1:
+            if len(harmonic_peaks) > 0:
+                harmonic_power = np.sum(harmonic_amps[harmonic_peaks] ** 2)
                 fundamental_power = fundamental_amp ** 2
-                harmonic_power = np.sum(Y[harmonic_peaks[1:]] ** 2)
-                thd = np.sqrt(harmonic_power / fundamental_power) * 100
-                self.freq_analysis_results['thd'].set(f"{thd:.2f}%")
 
-                # Nível de harmônicos
-                harmonics_level = harmonic_power / fundamental_power
-                self.freq_analysis_results['harmonics'].set(f"{harmonics_level:.4f}")
+                if fundamental_power > 0:
+                    thd = np.sqrt(harmonic_power / fundamental_power) * 100
+                    self.freq_analysis_results['thd'].set(f"{thd:.2f}%")
+
+                    # Nível de harmônicos
+                    harmonics_level = harmonic_power / fundamental_power
+                    self.freq_analysis_results['harmonics'].set(f"{harmonics_level:.4f}")
+                else:
+                    self.freq_analysis_results['thd'].set("0%")
+                    self.freq_analysis_results['harmonics'].set("0")
             else:
                 self.freq_analysis_results['thd'].set("0%")
                 self.freq_analysis_results['harmonics'].set("0")
 
             # SNR (Signal to Noise Ratio)
-            signal_power = np.sum(Y ** 2)
-            noise_floor = np.median(Y)
-            if noise_floor > 0:
-                snr = 10 * np.log10(signal_power / (noise_floor ** 2 * len(Y)))
-                self.freq_analysis_results['snr'].set(f"{snr:.2f} dB")
-                self.freq_analysis_results['noise_floor'].set(f"{noise_floor:.4f}")
+            if fundamental_amp > 0:
+                # Considera tudo que não é fundamental ou harmônicos como ruído
+                noise_mask = (f_positive > 0) & ~harmonic_mask
+                noise_power = np.sum(Y_positive[noise_mask] ** 2)
+
+                if noise_power > 0:
+                    snr = 10 * np.log10(fundamental_amp ** 2 / noise_power)
+                    self.freq_analysis_results['snr'].set(f"{snr:.2f} dB")
+                    self.freq_analysis_results['noise_floor'].set(f"{np.sqrt(noise_power):.4f}")
+                else:
+                    self.freq_analysis_results['snr'].set("∞ dB")
+                    self.freq_analysis_results['noise_floor'].set("---")
             else:
-                self.freq_analysis_results['snr'].set("∞ dB")
+                self.freq_analysis_results['snr'].set("---")
                 self.freq_analysis_results['noise_floor'].set("---")
 
             # SFDR (Spurious Free Dynamic Range)
-            if len(harmonic_peaks) > 1:
-                max_spur = np.max(Y[harmonic_peaks[1:]])
-                sfdr = 20 * np.log10(fundamental_amp / max_spur)
-                self.freq_analysis_results['sfdr'].set(f"{sfdr:.2f} dB")
+            if len(harmonic_peaks) > 0:
+                max_spur = np.max(harmonic_amps[harmonic_peaks])
+                if fundamental_amp > 0 and max_spur > 0:
+                    sfdr = 20 * np.log10(fundamental_amp / max_spur)
+                    self.freq_analysis_results['sfdr'].set(f"{sfdr:.2f} dB")
+                else:
+                    self.freq_analysis_results['sfdr'].set("∞ dB")
             else:
                 self.freq_analysis_results['sfdr'].set("∞ dB")
 
-            # Largura de banda
-            half_power = fundamental_amp / np.sqrt(2)
-            bandwidth_points = np.where(Y > half_power)[0]
-            if len(bandwidth_points) > 0:
-                bandwidth = f[bandwidth_points[-1]] - f[bandwidth_points[0]]
-                self.freq_analysis_results['bandwidth'].set(f"{self._format_freq(bandwidth)}")
+            # Largura de banda a -3dB
+            if fundamental_amp > 0:
+                half_power = fundamental_amp / np.sqrt(2)
+                above_half = Y_positive >= half_power
+                if np.any(above_half):
+                    min_freq = f_positive[above_half][0]
+                    max_freq = f_positive[above_half][-1]
+                    bandwidth = max_freq - min_freq
+                    self.freq_analysis_results['bandwidth'].set(f"{self._format_freq(bandwidth)}")
+                else:
+                    self.freq_analysis_results['bandwidth'].set("---")
             else:
                 self.freq_analysis_results['bandwidth'].set("---")
 
@@ -1155,26 +1280,31 @@ class SignalGeneratorApp(ctk.CTk):
                 # Para AM: m = (A_max - A_min) / (A_max + A_min)
                 A_max = np.max(y)
                 A_min = np.min(y)
-                mod_index = (A_max - A_min) / (A_max + A_min) * 100
-                self.freq_analysis_results['mod_index'].set(f"{mod_index:.1f}%")
+                if A_max + A_min != 0:
+                    mod_index = (A_max - A_min) / (A_max + A_min) * 100
+                    self.freq_analysis_results['mod_index'].set(f"{mod_index:.1f}%")
+                else:
+                    self.freq_analysis_results['mod_index'].set("---")
             elif self.mod_fm.get():
                 # Para FM: β = Δf / f_m
-                # Estimativa grosseira - poderia ser melhorada
-                sideband_idx = \
-                    np.where((f > fundamental_freq * 0.5) & (f < fundamental_freq * 1.5) & (f != fundamental_freq))[0]
-                if len(sideband_idx) > 0:
-                    sideband_amp = np.max(Y[sideband_idx])
-                    mod_index = sideband_amp / fundamental_amp * 100
-                    self.freq_analysis_results['mod_index'].set(f"{mod_index:.1f}%")
+                # Estimativa usando largura de banda
+                if fundamental_amp > 0:
+                    sideband_mask = (f_positive > fundamental_freq - 10) & (f_positive < fundamental_freq + 10)
+                    sideband_amp = np.max(Y_positive[sideband_mask])
+                    if fundamental_amp > 0:
+                        mod_index = sideband_amp / fundamental_amp * 100
+                        self.freq_analysis_results['mod_index'].set(f"{mod_index:.1f}%")
+                    else:
+                        self.freq_analysis_results['mod_index'].set("---")
                 else:
                     self.freq_analysis_results['mod_index'].set("---")
             else:
                 self.freq_analysis_results['mod_index'].set("N/A")
 
             # Frequência de pico (maior harmônico)
-            if len(harmonic_peaks) > 1:
-                peak_harmonic_idx = harmonic_peaks[1]  # O segundo maior pico
-                peak_freq = f[peak_harmonic_idx]
+            if len(harmonic_peaks) > 0:
+                peak_harmonic_idx = harmonic_peaks[0]
+                peak_freq = harmonic_freqs[peak_harmonic_idx]
                 self.freq_analysis_results['peak_freq'].set(f"{self._format_freq(peak_freq)}")
             else:
                 self.freq_analysis_results['peak_freq'].set("---")
