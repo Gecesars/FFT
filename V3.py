@@ -9,6 +9,8 @@ from scipy.signal import square, sawtooth, unit_impulse, gausspulse, chirp
 from scipy.fft import fft, fftfreq, fftshift
 from scipy.interpolate import CubicSpline
 from scipy.special import jv
+from scipy.stats import kurtosis, skew
+from scipy.signal import find_peaks
 import csv
 import json
 from concurrent.futures import ThreadPoolExecutor
@@ -29,7 +31,7 @@ class SignalGeneratorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Gerador de Sinais Avançado")
-        self.geometry("1400x950")
+        self.geometry("1600x1000")
 
         # Configurar layout principal
         self.grid_columnconfigure(1, weight=1)
@@ -57,7 +59,7 @@ class SignalGeneratorApp(ctk.CTk):
         self._build_sidebar()
         self._build_plot_area()
         self._build_context_menu()
-        self._build_marker_panel()
+        self._build_analysis_panels()
         self._build_status_bar()
 
         # Configurar tratamento de fechamento
@@ -201,49 +203,105 @@ class SignalGeneratorApp(ctk.CTk):
         self.menu.add_separator()
         self.menu.add_command(label="Limpar Todos Marcadores", command=lambda: self.clear_markers('all'))
 
-    def _build_marker_panel(self):
+    def _build_analysis_panels(self):
         # Container à direita da área dos gráficos
-        self.side_panel = ctk.CTkFrame(self, width=250, corner_radius=6)
+        self.side_panel = ctk.CTkFrame(self, width=350, corner_radius=6)
         self.side_panel.grid(row=0, column=2, padx=(0, 10), pady=10, sticky="nsew")
         self.side_panel.grid_propagate(False)
+        self.side_panel.grid_columnconfigure(0, weight=1)
+        self.side_panel.grid_rowconfigure(0, weight=1)
 
-        # --- Marcadores de Tempo
-        frm_time = ctk.CTkFrame(self.side_panel, fg_color="#1E1E1E", corner_radius=6)
-        frm_time.pack(fill="x", pady=(10, 5), padx=5)
-        ctk.CTkLabel(frm_time, text="Marcadores de Tempo", text_color="cyan", font=("Arial", 12, "bold")).pack(
-            anchor="w", pady=2, padx=8)
+        # Notebook para organizar as análises
+        self.analysis_notebook = ctk.CTkTabview(self.side_panel)
+        self.analysis_notebook.pack(fill="both", expand=True, padx=5, pady=5)
 
-        self.lbl_x1 = ctk.CTkLabel(frm_time, text="X1: ---")
-        self.lbl_x1.pack(anchor="w", padx=8)
-        self.lbl_x2 = ctk.CTkLabel(frm_time, text="X2: ---")
-        self.lbl_x2.pack(anchor="w", padx=8)
-        self.lbl_dx = ctk.CTkLabel(frm_time, text="ΔX: ---")
-        self.lbl_dx.pack(anchor="w", padx=8, pady=(0, 5))
-        self.lbl_y1 = ctk.CTkLabel(frm_time, text="Y1: ---")
-        self.lbl_y1.pack(anchor="w", padx=8)
-        self.lbl_y2 = ctk.CTkLabel(frm_time, text="Y2: ---")
-        self.lbl_y2.pack(anchor="w", padx=8)
-        self.lbl_dy = ctk.CTkLabel(frm_time, text="ΔY: ---")
-        self.lbl_dy.pack(anchor="w", padx=8)
+        # Aba de análise de tempo
+        self.time_analysis_tab = self.analysis_notebook.add("Domínio do Tempo")
+        self.freq_analysis_tab = self.analysis_notebook.add("Domínio da Frequência")
 
-        # --- Marcadores de Frequência
-        frm_freq = ctk.CTkFrame(self.side_panel, fg_color="#1E1E1E", corner_radius=6)
-        frm_freq.pack(fill="x", pady=(0, 10), padx=5)
-        ctk.CTkLabel(frm_freq, text="Marcadores de Frequência", text_color="orange", font=("Arial", 12, "bold")).pack(
-            anchor="w", pady=2, padx=8)
+        # --- Painel de Análise de Tempo ---
+        time_frame = ctk.CTkScrollableFrame(self.time_analysis_tab)
+        time_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-        self.lbl_f1 = ctk.CTkLabel(frm_freq, text="F1: ---")
-        self.lbl_f1.pack(anchor="w", padx=8)
-        self.lbl_f2 = ctk.CTkLabel(frm_freq, text="F2: ---")
-        self.lbl_f2.pack(anchor="w", padx=8)
-        self.lbl_df = ctk.CTkLabel(frm_freq, text="ΔF: ---")
-        self.lbl_df.pack(anchor="w", padx=8, pady=(0, 5))
-        self.lbl_m1 = ctk.CTkLabel(frm_freq, text="|Y1|: ---")
-        self.lbl_m1.pack(anchor="w", padx=8)
-        self.lbl_m2 = ctk.CTkLabel(frm_freq, text="|Y2|: ---")
-        self.lbl_m2.pack(anchor="w", padx=8)
-        self.lbl_dm = ctk.CTkLabel(frm_freq, text="Δ|Y|: ---")
-        self.lbl_dm.pack(anchor="w", padx=8)
+        # Título
+        ctk.CTkLabel(time_frame, text="Análise do Sinal no Tempo",
+                     font=("Arial", 14, "bold"), text_color="cyan").pack(anchor="w", pady=(0, 10))
+
+        # Variáveis para os resultados
+        self.time_analysis_results = {
+            'vpp': ctk.StringVar(value="---"),
+            'rms': ctk.StringVar(value="---"),
+            'mean': ctk.StringVar(value="---"),
+            'crest_factor': ctk.StringVar(value="---"),
+            'zero_crossing': ctk.StringVar(value="---"),
+            'frequency': ctk.StringVar(value="---"),
+            'duty_cycle': ctk.StringVar(value="---"),
+            'peak_to_rms': ctk.StringVar(value="---"),
+            'kurtosis': ctk.StringVar(value="---"),
+            'skewness': ctk.StringVar(value="---")
+        }
+
+        # Criar labels para cada métrica
+        metrics = [
+            ("Tensão Pico a Pico (Vpp):", self.time_analysis_results['vpp']),
+            ("Tensão RMS:", self.time_analysis_results['rms']),
+            ("Tensão Média (DC):", self.time_analysis_results['mean']),
+            ("Fator de Crista:", self.time_analysis_results['crest_factor']),
+            ("Taxa de Cruzamento por Zero:", self.time_analysis_results['zero_crossing']),
+            ("Frequência Estimada:", self.time_analysis_results['frequency']),
+            ("Ciclo de Trabalho (Duty Cycle):", self.time_analysis_results['duty_cycle']),
+            ("Relação Pico/RMS:", self.time_analysis_results['peak_to_rms']),
+            ("Curtose:", self.time_analysis_results['kurtosis']),
+            ("Assimetria (Skewness):", self.time_analysis_results['skewness'])
+        ]
+
+        for label_text, var in metrics:
+            frame = ctk.CTkFrame(time_frame, fg_color="transparent")
+            frame.pack(fill="x", padx=5, pady=2)
+            ctk.CTkLabel(frame, text=label_text, width=220).pack(side="left", anchor="w")
+            ctk.CTkLabel(frame, textvariable=var, width=100).pack(side="right", anchor="e")
+
+        # --- Painel de Análise de Frequência ---
+        freq_frame = ctk.CTkScrollableFrame(self.freq_analysis_tab)
+        freq_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Título
+        ctk.CTkLabel(freq_frame, text="Análise do Sinal na Frequência",
+                     font=("Arial", 14, "bold"), text_color="orange").pack(anchor="w", pady=(0, 10))
+
+        # Variáveis para os resultados
+        self.freq_analysis_results = {
+            'fundamental': ctk.StringVar(value="---"),
+            'fund_amp': ctk.StringVar(value="---"),
+            'thd': ctk.StringVar(value="---"),
+            'snr': ctk.StringVar(value="---"),
+            'sfdr': ctk.StringVar(value="---"),
+            'bandwidth': ctk.StringVar(value="---"),
+            'mod_index': ctk.StringVar(value="---"),
+            'harmonics': ctk.StringVar(value="---"),
+            'noise_floor': ctk.StringVar(value="---"),
+            'peak_freq': ctk.StringVar(value="---")
+        }
+
+        # Criar labels para cada métrica
+        metrics = [
+            ("Frequência Fundamental:", self.freq_analysis_results['fundamental']),
+            ("Amplitude Fundamental:", self.freq_analysis_results['fund_amp']),
+            ("THD (Distorção Harmônica):", self.freq_analysis_results['thd']),
+            ("SNR (Relação Sinal-Ruído):", self.freq_analysis_results['snr']),
+            ("SFDR (Faixa Dinâmica):", self.freq_analysis_results['sfdr']),
+            ("Largura de Banda:", self.freq_analysis_results['bandwidth']),
+            ("Índice de Modulação:", self.freq_analysis_results['mod_index']),
+            ("Nível de Harmônicos:", self.freq_analysis_results['harmonics']),
+            ("Piso de Ruído:", self.freq_analysis_results['noise_floor']),
+            ("Frequência de Pico:", self.freq_analysis_results['peak_freq'])
+        ]
+
+        for label_text, var in metrics:
+            frame = ctk.CTkFrame(freq_frame, fg_color="transparent")
+            frame.pack(fill="x", padx=5, pady=2)
+            ctk.CTkLabel(frame, text=label_text, width=220).pack(side="left", anchor="w")
+            ctk.CTkLabel(frame, textvariable=var, width=100).pack(side="right", anchor="e")
 
     def _build_status_bar(self):
         self.status_bar = ctk.CTkLabel(
@@ -303,6 +361,7 @@ class SignalGeneratorApp(ctk.CTk):
 
             # executa atualização de plot na thread principal
             self.after(0, self._update_plots)
+            self.after(0, self.update_analysis_panels)
 
         except Exception as e:
             error_msg = str(e)
@@ -510,8 +569,9 @@ class SignalGeneratorApp(ctk.CTk):
             self.after(0, lambda: self.entry_vpp.delete(0, tk.END))
             self.after(0, lambda: self.entry_vpp.insert(0, f"{vpp:.2f}"))
 
-            # Atualiza gráficos
+            # Atualiza gráficos e análises
             self.after(0, self._update_plots)
+            self.after(0, self.update_analysis_panels)
             self.set_status(f"✅ Sinal importado: {os.path.basename(filepath)}", "lightgreen")
 
         except Exception as e:
@@ -810,6 +870,150 @@ class SignalGeneratorApp(ctk.CTk):
             self.lbl_m1.configure(text="|Y1|: ---")
             self.lbl_m2.configure(text="|Y2|: ---")
             self.lbl_dm.configure(text="Δ|Y|: ---")
+
+    def update_analysis_panels(self):
+        if not self.last_data:
+            return
+
+        y = self.last_data['y']
+        t = self.last_data['t']
+        f = self.last_data['f']
+        Y = self.last_data['Y']
+
+        # Análise no domínio do tempo
+        if len(y) > 0:
+            # Tensão pico a pico
+            vpp = np.max(y) - np.min(y)
+            self.time_analysis_results['vpp'].set(f"{vpp:.4f} V")
+
+            # Tensão RMS
+            rms = np.sqrt(np.mean(y ** 2))
+            self.time_analysis_results['rms'].set(f"{rms:.4f} V")
+
+            # Tensão média (DC offset)
+            mean = np.mean(y)
+            self.time_analysis_results['mean'].set(f"{mean:.4f} V")
+
+            # Fator de crista (Crest Factor)
+            crest_factor = np.max(np.abs(y)) / rms if rms > 0 else 0
+            self.time_analysis_results['crest_factor'].set(f"{crest_factor:.4f}")
+
+            # Taxa de cruzamento por zero
+            zero_crossings = np.where(np.diff(np.sign(y)))[0]
+            zero_crossing_rate = len(zero_crossings) / (t[-1] - t[0])
+            self.time_analysis_results['zero_crossing'].set(f"{zero_crossing_rate:.2f} Hz")
+
+            # Frequência estimada
+            if len(zero_crossings) > 1:
+                avg_period = np.mean(np.diff(t[zero_crossings])) * 2
+                freq_est = 1 / avg_period if avg_period > 0 else 0
+                self.time_analysis_results['frequency'].set(f"{freq_est:.2f} Hz")
+            else:
+                self.time_analysis_results['frequency'].set("---")
+
+            # Duty cycle (apenas para ondas quadradas)
+            if self.waveform.get().startswith("Quadrada") or self.waveform.get().startswith("Pulso"):
+                positive_samples = np.sum(y > (np.max(y) * 0.5))
+                duty_cycle = positive_samples / len(y) * 100
+                self.time_analysis_results['duty_cycle'].set(f"{duty_cycle:.1f}%")
+            else:
+                self.time_analysis_results['duty_cycle'].set("N/A")
+
+            # Relação Pico/RMS
+            peak_to_rms = np.max(np.abs(y)) / rms if rms > 0 else 0
+            self.time_analysis_results['peak_to_rms'].set(f"{peak_to_rms:.4f}")
+
+            # Curtose
+            kurt = kurtosis(y)
+            self.time_analysis_results['kurtosis'].set(f"{kurt:.4f}")
+
+            # Assimetria (Skewness)
+            skew_val = skew(y)
+            self.time_analysis_results['skewness'].set(f"{skew_val:.4f}")
+
+        # Análise no domínio da frequência
+        if len(Y) > 0:
+            # Encontra a frequência fundamental
+            fundamental_idx = np.argmax(Y)
+            fundamental_freq = f[fundamental_idx]
+            fundamental_amp = Y[fundamental_idx]
+            self.freq_analysis_results['fundamental'].set(f"{self._format_freq(fundamental_freq)}")
+            self.freq_analysis_results['fund_amp'].set(f"{fundamental_amp:.4f}")
+
+            # Encontra harmônicos
+            peaks, _ = find_peaks(Y, height=np.max(Y) * 0.05, distance=10)
+            harmonic_peaks = peaks[np.argsort(Y[peaks])[::-1]]
+
+            # Calcula THD (Total Harmonic Distortion)
+            if len(harmonic_peaks) > 1:
+                fundamental_power = fundamental_amp ** 2
+                harmonic_power = np.sum(Y[harmonic_peaks[1:]] ** 2)
+                thd = np.sqrt(harmonic_power / fundamental_power) * 100
+                self.freq_analysis_results['thd'].set(f"{thd:.2f}%")
+
+                # Nível de harmônicos
+                harmonics_level = harmonic_power / fundamental_power
+                self.freq_analysis_results['harmonics'].set(f"{harmonics_level:.4f}")
+            else:
+                self.freq_analysis_results['thd'].set("0%")
+                self.freq_analysis_results['harmonics'].set("0")
+
+            # SNR (Signal to Noise Ratio)
+            signal_power = np.sum(Y ** 2)
+            noise_floor = np.median(Y)
+            if noise_floor > 0:
+                snr = 10 * np.log10(signal_power / (noise_floor ** 2 * len(Y)))
+                self.freq_analysis_results['snr'].set(f"{snr:.2f} dB")
+                self.freq_analysis_results['noise_floor'].set(f"{noise_floor:.4f}")
+            else:
+                self.freq_analysis_results['snr'].set("∞ dB")
+                self.freq_analysis_results['noise_floor'].set("---")
+
+            # SFDR (Spurious Free Dynamic Range)
+            if len(harmonic_peaks) > 1:
+                max_spur = np.max(Y[harmonic_peaks[1:]])
+                sfdr = 20 * np.log10(fundamental_amp / max_spur)
+                self.freq_analysis_results['sfdr'].set(f"{sfdr:.2f} dB")
+            else:
+                self.freq_analysis_results['sfdr'].set("∞ dB")
+
+            # Largura de banda
+            half_power = fundamental_amp / np.sqrt(2)
+            bandwidth_points = np.where(Y > half_power)[0]
+            if len(bandwidth_points) > 0:
+                bandwidth = f[bandwidth_points[-1]] - f[bandwidth_points[0]]
+                self.freq_analysis_results['bandwidth'].set(f"{self._format_freq(bandwidth)}")
+            else:
+                self.freq_analysis_results['bandwidth'].set("---")
+
+            # Índice de modulação (estimado)
+            if self.mod_am.get():
+                # Para AM: m = (A_max - A_min) / (A_max + A_min)
+                A_max = np.max(y)
+                A_min = np.min(y)
+                mod_index = (A_max - A_min) / (A_max + A_min) * 100
+                self.freq_analysis_results['mod_index'].set(f"{mod_index:.1f}%")
+            elif self.mod_fm.get():
+                # Para FM: β = Δf / f_m
+                # Estimativa grosseira - poderia ser melhorada
+                sideband_idx = \
+                np.where((f > fundamental_freq * 0.5) & (f < fundamental_freq * 1.5) & (f != fundamental_freq))[0]
+                if len(sideband_idx) > 0:
+                    sideband_amp = np.max(Y[sideband_idx])
+                    mod_index = sideband_amp / fundamental_amp * 100
+                    self.freq_analysis_results['mod_index'].set(f"{mod_index:.1f}%")
+                else:
+                    self.freq_analysis_results['mod_index'].set("---")
+            else:
+                self.freq_analysis_results['mod_index'].set("N/A")
+
+            # Frequência de pico (maior harmônico)
+            if len(harmonic_peaks) > 1:
+                peak_harmonic_idx = harmonic_peaks[1]  # O segundo maior pico
+                peak_freq = f[peak_harmonic_idx]
+                self.freq_analysis_results['peak_freq'].set(f"{self._format_freq(peak_freq)}")
+            else:
+                self.freq_analysis_results['peak_freq'].set("---")
 
     def _format_time(self, s):
         if s < 1e-6:
