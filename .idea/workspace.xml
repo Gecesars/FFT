@@ -5,12 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cd7c870d-bb93-4052-bf17-27f2907c46ea" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/decode_wav.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/seg.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/seg2.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/seg3.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/V3.py" beforeDir="false" afterPath="$PROJECT_DIR$/V3.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/versão15.py" beforeDir="false" afterPath="$PROJECT_DIR$/versão15.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/seg.py" beforeDir="false" afterPath="$PROJECT_DIR$/seg.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -55,6 +54,7 @@
     "Python.main.executor": "Run",
     "Python.seg.executor": "Run",
     "Python.seg2.executor": "Run",
+    "Python.seg3.executor": "Run",
     "Python.v222.executor": "Run",
     "Python.versão15.executor": "Run",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
@@ -68,7 +68,7 @@
       <recent name="D:\Downloads\Documentos\FFT" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.seg">
+  <component name="RunManager" selected="Python.seg3">
     <configuration name="V3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FFT" />
       <option name="ENV_FILES" value="" />
@@ -83,28 +83,6 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/V3.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="decode_wav" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="FFT" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/decode_wav.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -179,6 +157,28 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="seg3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="FFT" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/seg3.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="versão15" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FFT" />
       <option name="ENV_FILES" value="" />
@@ -203,11 +203,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.seg3" />
+        <item itemvalue="Python.V3" />
         <item itemvalue="Python.seg" />
         <item itemvalue="Python.seg2" />
         <item itemvalue="Python.versão15" />
-        <item itemvalue="Python.decode_wav" />
-        <item itemvalue="Python.V3" />
       </list>
     </recent_temporary>
   </component>

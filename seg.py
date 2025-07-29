@@ -45,7 +45,7 @@ class SignalGeneratorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Gerador de Sinais Avançado")
-        self.geometry("1600x1000")
+        self.geometry("1700x1000")  # Largura aumentada para acomodar painel lateral maior
 
         # Configurar layout principal
         self.grid_columnconfigure(1, weight=1)
@@ -67,6 +67,8 @@ class SignalGeneratorApp(ctk.CTk):
         self.after_ids = []
         self.y_scale = 1.0  # Escala de amplitude
         self.zoom_factor = 1.0  # Fator de zoom inicial
+        self.imported_voltage_scale = [1.0, "V", 1]  # Armazena a escala de tensão importada
+        self.imported_time_scale = [1.0, "S", 1]  # Armazena a escala de tempo importada
 
         self.mod_am = tk.BooleanVar(value=False)
         self.mod_fm = tk.BooleanVar(value=False)
@@ -246,6 +248,7 @@ class SignalGeneratorApp(ctk.CTk):
         try:
             vpp = float(self.entry_vpp.get())
             self.ax_time.set_ylim(-vpp / 2 * float(value), vpp / 2 * float(value))
+            self._update_voltage_ticks()
             self.canvas.draw_idle()
         except:
             pass
@@ -274,8 +277,8 @@ class SignalGeneratorApp(ctk.CTk):
         self.menu.add_command(label="Limpar Todos Marcadores", command=lambda: self.clear_markers('all'))
 
     def _build_marker_panel(self):
-        # Container à direita da área dos gráficos
-        self.side_panel = ctk.CTkFrame(self, width=350, corner_radius=6)
+        # Container à direita da área dos gráficos - AUMENTADO para 400px
+        self.side_panel = ctk.CTkFrame(self, width=400, corner_radius=6)
         self.side_panel.grid(row=0, column=2, padx=(0, 10), pady=10, sticky="nsew")
         self.side_panel.grid_propagate(False)
         self.side_panel.grid_rowconfigure(1, weight=1)  # Dá espaço para o painel de análise
@@ -353,7 +356,7 @@ class SignalGeneratorApp(ctk.CTk):
             'skewness': ctk.StringVar(value="---")
         }
 
-        # Criar labels para cada métrica
+        # Criar labels para cada métrica com espaço maior
         metrics = [
             ("Tensão Pico a Pico (Vpp):", self.time_analysis_results['vpp']),
             ("Tensão RMS:", self.time_analysis_results['rms']),
@@ -370,9 +373,9 @@ class SignalGeneratorApp(ctk.CTk):
         for label_text, var in metrics:
             frame = ctk.CTkFrame(time_frame, fg_color="transparent")
             frame.pack(fill="x", padx=5, pady=2)
-            lbl = ctk.CTkLabel(frame, text=label_text, width=220, anchor="w")
+            lbl = ctk.CTkLabel(frame, text=label_text, width=250, anchor="w")  # Largura aumentada
             lbl.pack(side="left", anchor="w")
-            val = ctk.CTkLabel(frame, textvariable=var, width=100, anchor="e")
+            val = ctk.CTkLabel(frame, textvariable=var, width=120, anchor="e")  # Largura aumentada
             val.pack(side="right", anchor="e")
 
         # --- Painel de Análise de Frequência ---
@@ -397,7 +400,7 @@ class SignalGeneratorApp(ctk.CTk):
             'peak_freq': ctk.StringVar(value="---")
         }
 
-        # Criar labels para cada métrica
+        # Criar labels para cada métrica com espaço maior
         metrics = [
             ("Frequência Fundamental:", self.freq_analysis_results['fundamental']),
             ("Amplitude Fundamental:", self.freq_analysis_results['fund_amp']),
@@ -414,9 +417,9 @@ class SignalGeneratorApp(ctk.CTk):
         for label_text, var in metrics:
             frame = ctk.CTkFrame(freq_frame, fg_color="transparent")
             frame.pack(fill="x", padx=5, pady=2)
-            lbl = ctk.CTkLabel(frame, text=label_text, width=220, anchor="w")
+            lbl = ctk.CTkLabel(frame, text=label_text, width=250, anchor="w")  # Largura aumentada
             lbl.pack(side="left", anchor="w")
-            val = ctk.CTkLabel(frame, textvariable=var, width=100, anchor="e")
+            val = ctk.CTkLabel(frame, textvariable=var, width=120, anchor="e")  # Largura aumentada
             val.pack(side="right", anchor="e")
 
     def _build_status_bar(self):
@@ -765,7 +768,7 @@ class SignalGeneratorApp(ctk.CTk):
         ax.plot(t, y, 'b-', label="Original")
 
         # Amostrar o sinal
-        n_samples = 50  # Número inicial de amostras
+        n_samples = 1500  # Número fixo de amostras para compatibilidade
         sample_points = np.linspace(t[0], t[-1], n_samples)
         sample_values = np.interp(sample_points, t, y)
         line, = ax.plot(sample_points, sample_values, 'ro-', label="Amostrado", picker=5)
@@ -803,35 +806,13 @@ class SignalGeneratorApp(ctk.CTk):
         ctrl_frame = ctk.CTkFrame(sampling_win)
         ctrl_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
-        # Slider para número de amostras
-        ctk.CTkLabel(ctrl_frame, text="Número de Amostras:").pack(side="left", padx=5)
-        samples_slider = ctk.CTkSlider(ctrl_frame, from_=10, to=200, command=lambda v: self._update_samples(int(v)))
-        samples_slider.set(n_samples)
-        samples_slider.pack(side="left", padx=5, fill="x", expand=True)
-
         # Botão para exportar
         ctk.CTkButton(ctrl_frame, text="Exportar WAV",
-                      command=lambda: self._export_sampled_wav(sample_points, sample_values)).pack(side="right", padx=5)
-
-    def _update_samples(self, n_samples):
-        """Atualiza o número de amostras na janela de amostragem"""
-        state = self.sampling_state
-        t_orig = state['t_original']
-        y_orig = state['y_original']
-
-        # Gera novos pontos de amostragem uniformemente espaçados
-        sample_points = np.linspace(t_orig[0], t_orig[-1], n_samples)
-        sample_values = np.interp(sample_points, t_orig, y_orig)
-
-        # Atualiza o estado
-        state['sample_points'] = sample_points
-        state['sample_values'] = sample_values
-
-        # Atualiza o gráfico
-        state['line'].set_data(sample_points, sample_values)
-        state['ax'].relim()
-        state['ax'].autoscale_view()
-        state['canvas'].draw()
+                      command=lambda: self._export_sampled_wav(
+                          self.sampling_state['sample_points'],
+                          self.sampling_state['sample_values'],
+                          filename
+                      )).pack(side="right", padx=5)
 
     def _on_sample_pick(self, event):
         """Manipula a seleção de pontos amostrados"""
@@ -859,39 +840,58 @@ class SignalGeneratorApp(ctk.CTk):
         # Atualiza o valor do ponto
         state['sample_values'][idx] = event.ydata
 
+        # Se Shift estiver pressionado, restringe ao eixo Y
+        if not event.key == 'shift':
+            state['sample_points'][idx] = event.xdata
+
         # Atualiza o gráfico
         state['line'].set_data(state['sample_points'], state['sample_values'])
         state['canvas'].draw()
 
-    def _export_sampled_wav(self, t, y):
-        """Exporta o sinal amostrado em formato WAV"""
+    def _export_sampled_wav(self, t, y, filename):
+        """Exporta o sinal amostrado em formato WAV compatível"""
         filepath = filedialog.asksaveasfilename(
             defaultextension=".wav",
-            filetypes=[("WAV files", "*.wav")]
+            filetypes=[("WAV files", "*.wav")],
+            initialfile=os.path.splitext(filename)[0] + "_amostrado.wav"
         )
         if not filepath:
             return
 
         try:
-            # Normaliza para int16
-            y_int16 = np.int16(y * 32767)
+            # Usa a escala de tensão original importada
+            scale_value = self.imported_voltage_scale[0]
+            scale_unit = self.imported_voltage_scale[1]
 
-            # Taxa de amostragem estimada
-            duration = t[-1] - t[0]
-            fs_value = int(len(t) / duration)
+            # Converte os dados para o formato do osciloscópio
+            data_bytes = bytearray()
+            for value in y:
+                # Fórmula inversa: raw = (value * 50 / scale_value) + 200
+                raw_value = (value * 50.0 / scale_value) + 200
+                int_value = int(raw_value)
+                # Limitar o valor ao intervalo [0, 65535]
+                int_value = max(0, min(int_value, 65535))
+                # Divide em dois bytes (little-endian)
+                data_bytes.append(int_value & 0xFF)
+                data_bytes.append((int_value >> 8) & 0xFF)
 
-            # Cria cabeçalho padrão de 208 bytes
+            # Cria o cabeçalho
             header = bytearray(208)
+            # Índices de escala de tensão (canais 1 e 2)
+            header[4] = VOLT_LIST.index(self.imported_voltage_scale)
+            header[14] = VOLT_LIST.index(self.imported_voltage_scale)
+            # Índice de escala de tempo
+            header[22] = TIME_LIST.index(self.imported_time_scale)
 
-            # Preenche o arquivo com zeros até o tamanho total
+            # Constrói o arquivo completo
             file_data = bytearray(WAV_TOTAL_SIZE)
             file_data[0:208] = header
+            # Canal 1: 1500 amostras (3000 bytes) a partir do byte 1000
+            start_index = 1000
+            end_index = start_index + len(data_bytes)
+            file_data[start_index:end_index] = data_bytes
 
-            # Adiciona os dados (amostras de 16 bits)
-            data_bytes = y_int16.tobytes()
-            file_data[1000:1000 + len(data_bytes)] = data_bytes  # Canal 1
-
-            # Escreve no arquivo
+            # Escreve o arquivo
             with open(filepath, 'wb') as f:
                 f.write(file_data)
 
@@ -913,25 +913,39 @@ class SignalGeneratorApp(ctk.CTk):
             return
 
         try:
-            # Normaliza para int16
-            y_int16 = np.int16(y * 32767)
+            # Usa a escala de tensão original importada
+            scale_value = self.imported_voltage_scale[0]
+            scale_unit = self.imported_voltage_scale[1]
 
-            # Taxa de amostragem estimada
-            duration = t[-1] - t[0]
-            fs_value = int(len(t) / duration)
+            # Converte os dados para o formato do osciloscópio
+            data_bytes = bytearray()
+            for value in y:
+                # Fórmula inversa: raw = (value * 50 / scale_value) + 200
+                raw_value = (value * 50.0 / scale_value) + 200
+                int_value = int(raw_value)
+                # Limitar o valor ao intervalo [0, 65535]
+                int_value = max(0, min(int_value, 65535))
+                # Divide em dois bytes (little-endian)
+                data_bytes.append(int_value & 0xFF)
+                data_bytes.append((int_value >> 8) & 0xFF)
 
-            # Cria cabeçalho padrão de 208 bytes
+            # Cria o cabeçalho
             header = bytearray(208)
+            # Índices de escala de tensão (canais 1 e 2)
+            header[4] = VOLT_LIST.index(self.imported_voltage_scale)
+            header[14] = VOLT_LIST.index(self.imported_voltage_scale)
+            # Índice de escala de tempo
+            header[22] = TIME_LIST.index(self.imported_time_scale)
 
-            # Preenche o arquivo com zeros até o tamanho total
+            # Constrói o arquivo completo
             file_data = bytearray(WAV_TOTAL_SIZE)
             file_data[0:208] = header
+            # Canal 1: 1500 amostras (3000 bytes) a partir do byte 1000
+            start_index = 1000
+            end_index = start_index + len(data_bytes)
+            file_data[start_index:end_index] = data_bytes
 
-            # Adiciona os dados (amostras de 16 bits)
-            data_bytes = y_int16.tobytes()
-            file_data[1000:1000 + len(data_bytes)] = data_bytes  # Canal 1
-
-            # Escreve no arquivo
+            # Escreve o arquivo
             with open(filepath, 'wb') as f:
                 f.write(file_data)
 
@@ -945,7 +959,7 @@ class SignalGeneratorApp(ctk.CTk):
     def _calculate_fft(self, t, y):
         """Calcula a FFT para o sinal"""
         N = len(y)
-        Fs = 1 / (t[1] - t[0])  # Frequência de amostragem estimada
+        Fs = 1 / (t[1] - t[0]) if len(t) > 1 else 1  # Frequência de amostragem estimada
         Y = fftshift(fft(y))
         f = fftshift(fftfreq(N, 1 / Fs))
         return f, np.abs(Y)
@@ -969,8 +983,8 @@ class SignalGeneratorApp(ctk.CTk):
         for label, value in metrics:
             frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
             frame.pack(fill="x", padx=5, pady=2)
-            ctk.CTkLabel(frame, text=label, width=220, anchor="w").pack(side="left")
-            ctk.CTkLabel(frame, text=value, width=100, anchor="e").pack(side="right")
+            ctk.CTkLabel(frame, text=label, width=250, anchor="w").pack(side="left")
+            ctk.CTkLabel(frame, text=value, width=120, anchor="e").pack(side="right")
 
     def _calculate_time_analysis(self, t, y):
         """Calcula métricas para análise de tempo"""
@@ -1050,6 +1064,8 @@ class SignalGeneratorApp(ctk.CTk):
 
             # Decodifica o cabeçalho
             volt_scale, time_multiplier = self._parse_header(header)
+            self.imported_voltage_scale = volt_scale[0]  # Salva a escala para exportação
+            self.imported_time_scale = next((ts for ts in TIME_LIST if ts[2] == time_multiplier), TIME_LIST[0])
 
             # Decodifica os dados dos canais
             ch1_data = self._parse_channel_data(data_buffers[0], volt_scale[0])
@@ -1118,32 +1134,63 @@ class SignalGeneratorApp(ctk.CTk):
             return
 
         try:
-            # Obtém dados normalizados para int16
+            # Obtém os dados do sinal
+            t = self.last_data['t']
             y = self.last_data['y']
 
-            # Redimensiona para 1500 pontos (tamanho esperado pelo osciloscópio)
-            if len(y) != 1500:
-                t_original = np.linspace(0, len(y) / len(y), len(y))
-                t_new = np.linspace(0, len(y) / len(y), 1500)
-                y = np.interp(t_new, t_original, y)
+            # Se o sinal foi importado, usa a escala original
+            if hasattr(self, 'imported_voltage_scale'):
+                scale_value = self.imported_voltage_scale[0]
+                time_scale = self.imported_time_scale
+            else:
+                # Para sinais gerados, usa escala padrão
+                scale_value = 1.0
+                time_scale = TIME_LIST[0]
 
-            y_int16 = np.int16(y * 32767)
+            # Converte os dados para o formato do osciloscópio
+            data_bytes = bytearray()
+            for value in y:
+                # Fórmula inversa: raw = (value * 50 / scale_value) + 200
+                raw_value = (value * 50.0 / scale_value) + 200
+                int_value = int(raw_value)
+                # Limitar o valor ao intervalo [0, 65535]
+                int_value = max(0, min(int_value, 65535))
+                # Divide em dois bytes (little-endian)
+                data_bytes.append(int_value & 0xFF)
+                data_bytes.append((int_value >> 8) & 0xFF)
 
-            # Taxa de amostragem
-            fs_value = int(float(self.entry_fs.get()) * UNIT_MULTIPLIERS[self.units_fs.get()])
-
-            # Cria cabeçalho padrão de 208 bytes
+            # Cria o cabeçalho
             header = bytearray(208)
+            # Índices de escala de tensão (canais 1 e 2)
+            header[4] = VOLT_LIST.index(self.imported_voltage_scale) if hasattr(self, 'imported_voltage_scale') else 2
+            header[14] = VOLT_LIST.index(self.imported_voltage_scale) if hasattr(self, 'imported_voltage_scale') else 2
+            # Índice de escala de tempo
+            header[22] = TIME_LIST.index(time_scale)
 
-            # Preenche o arquivo com zeros até o tamanho total
+            # Constrói o arquivo completo
             file_data = bytearray(WAV_TOTAL_SIZE)
             file_data[0:208] = header
+            # Canal 1: 1500 amostras (3000 bytes) a partir do byte 1000
+            # Se tiver mais de 1500 pontos, interpola
+            if len(y) != 1500:
+                t_orig = np.linspace(t[0], t[-1], len(y))
+                t_new = np.linspace(t[0], t[-1], 1500)
+                y_resampled = np.interp(t_new, t_orig, y)
 
-            # Adiciona os dados (1500 amostras de 16 bits)
-            data_bytes = y_int16.tobytes()
-            file_data[1000:1000 + len(data_bytes)] = data_bytes  # Canal 1
+                # Reconverte os dados interpolados
+                data_bytes = bytearray()
+                for value in y_resampled:
+                    raw_value = (value * 50.0 / scale_value) + 200
+                    int_value = int(raw_value)
+                    int_value = max(0, min(int_value, 65535))
+                    data_bytes.append(int_value & 0xFF)
+                    data_bytes.append((int_value >> 8) & 0xFF)
 
-            # Escreve no arquivo
+            start_index = 1000
+            end_index = start_index + len(data_bytes)
+            file_data[start_index:end_index] = data_bytes
+
+            # Escreve o arquivo
             with open(filepath, 'wb') as f:
                 f.write(file_data)
 
@@ -1153,6 +1200,30 @@ class SignalGeneratorApp(ctk.CTk):
             error_msg = str(e)
             messagebox.showerror("Erro ao exportar WAV", error_msg)
             self.set_status(f"❌ Erro ao exportar: {error_msg}", "red")
+
+    def _update_voltage_ticks(self):
+        """Atualiza as escalas de tensão no gráfico de tempo"""
+        if not self.last_data:
+            return
+
+        try:
+            # Obtém a amplitude Vpp configurada
+            vpp = float(self.entry_vpp.get())
+
+            # Define o número de divisões
+            num_divisions = 8
+            step = vpp / num_divisions
+
+            # Cria as marcas de tensão
+            ticks = np.arange(-vpp / 2, vpp / 2 + step, step)
+
+            # Atualiza os ticks do eixo Y
+            self.ax_time.set_yticks(ticks)
+            self.ax_time.grid(True, which='both', axis='y', linestyle='--', alpha=0.5)
+
+        except:
+            # Em caso de erro, usa escala automática
+            self.ax_time.grid(True, which='both', axis='y', linestyle='--', alpha=0.5)
 
     def _update_plots(self):
         if not self.last_data:
@@ -1176,9 +1247,14 @@ class SignalGeneratorApp(ctk.CTk):
         try:
             vpp = float(self.entry_vpp.get())
             self.ax_time.set_ylim(-vpp / 2, vpp / 2)
+
+            # Adiciona escalas de tensão
+            self._update_voltage_ticks()
+
         except:
             # Usa escala automática se amplitude inválida
             self.ax_time.autoscale(axis='y')
+            self.ax_time.grid(True, which='both', axis='y', linestyle='--', alpha=0.5)
 
         self.freq_plot_line, = self.ax_freq.plot(self.last_data['f'], self.last_data['Y'], color="orange")
         self.ax_freq.set_title("Domínio da Frequência (FFT)", color='white')
@@ -1501,9 +1577,12 @@ class SignalGeneratorApp(ctk.CTk):
             # Frequência estimada
             if len(zero_crossings) > 1:
                 periods = np.diff(t[zero_crossings])
-                avg_period = np.mean(periods) * 2
-                freq_est = 1 / avg_period if avg_period > 0 else 0
-                self.time_analysis_results['frequency'].set(f"{freq_est:.2f} Hz")
+                if len(periods) > 0:
+                    avg_period = np.mean(periods) * 2
+                    freq_est = 1 / avg_period if avg_period > 0 else 0
+                    self.time_analysis_results['frequency'].set(f"{freq_est:.2f} Hz")
+                else:
+                    self.time_analysis_results['frequency'].set("---")
             else:
                 self.time_analysis_results['frequency'].set("---")
 

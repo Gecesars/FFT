@@ -662,7 +662,7 @@ class SignalGeneratorApp(ctk.CTk):
         else:
             ts = TIME_LIST[0]  # Default se índice inválido
 
-        return volt_scale, ts[2]  # Retorna escalas de tensão e multiplicador de tempo
+        return volt_scale, ts  # Retorna escalas de tensão e a entrada completa da escala de tempo
 
     def _parse_channel_data(self, data_bytes, scale):
         """Decodifica os dados de um canal específico"""
@@ -855,7 +855,7 @@ class SignalGeneratorApp(ctk.CTk):
             filetypes=[("WAV files", "*.wav")],
             initialfile=os.path.splitext(filename)[0] + "_amostrado.wav"
         )
-        if not filepath:
+        if not filepath:  # Usuário cancelou
             return
 
         try:
@@ -878,10 +878,12 @@ class SignalGeneratorApp(ctk.CTk):
             # Cria o cabeçalho
             header = bytearray(208)
             # Índices de escala de tensão (canais 1 e 2)
-            header[4] = VOLT_LIST.index(self.imported_voltage_scale)
-            header[14] = VOLT_LIST.index(self.imported_voltage_scale)
+            if hasattr(self, 'imported_voltage_scale'):
+                header[4] = VOLT_LIST.index(self.imported_voltage_scale)
+                header[14] = VOLT_LIST.index(self.imported_voltage_scale)
             # Índice de escala de tempo
-            header[22] = TIME_LIST.index(self.imported_time_scale)
+            if hasattr(self, 'imported_time_scale'):
+                header[22] = TIME_LIST.index(self.imported_time_scale)
 
             # Constrói o arquivo completo
             file_data = bytearray(WAV_TOTAL_SIZE)
@@ -889,7 +891,10 @@ class SignalGeneratorApp(ctk.CTk):
             # Canal 1: 1500 amostras (3000 bytes) a partir do byte 1000
             start_index = 1000
             end_index = start_index + len(data_bytes)
-            file_data[start_index:end_index] = data_bytes
+            if end_index <= WAV_TOTAL_SIZE:
+                file_data[start_index:end_index] = data_bytes
+            else:
+                raise ValueError("Dados excedem o tamanho máximo do arquivo WAV")
 
             # Escreve o arquivo
             with open(filepath, 'wb') as f:
@@ -909,7 +914,7 @@ class SignalGeneratorApp(ctk.CTk):
             filetypes=[("WAV files", "*.wav")],
             initialfile=filename
         )
-        if not filepath:
+        if not filepath:  # Usuário cancelou
             return
 
         try:
@@ -932,10 +937,12 @@ class SignalGeneratorApp(ctk.CTk):
             # Cria o cabeçalho
             header = bytearray(208)
             # Índices de escala de tensão (canais 1 e 2)
-            header[4] = VOLT_LIST.index(self.imported_voltage_scale)
-            header[14] = VOLT_LIST.index(self.imported_voltage_scale)
+            if hasattr(self, 'imported_voltage_scale'):
+                header[4] = VOLT_LIST.index(self.imported_voltage_scale)
+                header[14] = VOLT_LIST.index(self.imported_voltage_scale)
             # Índice de escala de tempo
-            header[22] = TIME_LIST.index(self.imported_time_scale)
+            if hasattr(self, 'imported_time_scale'):
+                header[22] = TIME_LIST.index(self.imported_time_scale)
 
             # Constrói o arquivo completo
             file_data = bytearray(WAV_TOTAL_SIZE)
@@ -943,7 +950,10 @@ class SignalGeneratorApp(ctk.CTk):
             # Canal 1: 1500 amostras (3000 bytes) a partir do byte 1000
             start_index = 1000
             end_index = start_index + len(data_bytes)
-            file_data[start_index:end_index] = data_bytes
+            if end_index <= WAV_TOTAL_SIZE:
+                file_data[start_index:end_index] = data_bytes
+            else:
+                raise ValueError("Dados excedem o tamanho máximo do arquivo WAV")
 
             # Escreve o arquivo
             with open(filepath, 'wb') as f:
@@ -1055,7 +1065,7 @@ class SignalGeneratorApp(ctk.CTk):
     def import_wav(self):
         """Importa e decodifica arquivo WAV do Fnirsi"""
         filepath = filedialog.askopenfilename(filetypes=[("WAV files", "*.wav")])
-        if not filepath:
+        if not filepath:  # Usuário cancelou a seleção
             return
 
         try:
@@ -1063,17 +1073,21 @@ class SignalGeneratorApp(ctk.CTk):
             header, data_buffers = self._read_wav_file(filepath)
 
             # Decodifica o cabeçalho
-            volt_scale, time_multiplier = self._parse_header(header)
-            self.imported_voltage_scale = volt_scale[0]  # Salva a escala para exportação
-            self.imported_time_scale = next((ts for ts in TIME_LIST if ts[2] == time_multiplier), TIME_LIST[0])
+            volt_scale, ts = self._parse_header(header)
+            self.imported_voltage_scale = volt_scale[0]  # Salva a escala para exportação (canal 1)
+            self.imported_time_scale = ts  # Salva a entrada completa da escala de tempo
 
             # Decodifica os dados dos canais
             ch1_data = self._parse_channel_data(data_buffers[0], volt_scale[0])
 
             # Calcula parâmetros do sinal
             N = len(ch1_data)
-            t = np.arange(N) * time_multiplier  # Vetor de tempo
-            Fs = 1 / time_multiplier  # Frequência de amostragem
+            # Calcula o vetor de tempo: total_time = 12 divisões * (ts[0] * ts[2]) segundos
+            time_per_division = ts[0] * ts[2]  # em segundos
+            total_time = 12 * time_per_division
+            t = np.linspace(0, total_time, N, endpoint=False)
+            Fs = N / total_time  # Frequência de amostragem
+
             vpp = max(ch1_data) - min(ch1_data)  # Tensão pico a pico
 
             # FFT
@@ -1085,7 +1099,7 @@ class SignalGeneratorApp(ctk.CTk):
 
             # Atualiza campos de entrada
             self.after(0, lambda: self.entry_duration.delete(0, tk.END))
-            self.after(0, lambda: self.entry_duration.insert(0, f"{t[-1]:.4f}"))
+            self.after(0, lambda: self.entry_duration.insert(0, f"{total_time:.4f}"))
             self.after(0, lambda: self.entry_fc.delete(0, tk.END))
             self.after(0, lambda: self.entry_fc.insert(0, "0"))  # Não sabemos Fc
             self.after(0, lambda: self.entry_fs.delete(0, tk.END))
@@ -1106,9 +1120,9 @@ class SignalGeneratorApp(ctk.CTk):
             json_path = os.path.splitext(filepath)[0] + ".json"
             with open(json_path, 'w') as f:
                 json.dump({
-                    'time_multiplier': time_multiplier,
-                    'voltage_scale': volt_scale[0][0],
-                    'voltage_unit': volt_scale[0][1],
+                    'time_per_division': time_per_division,
+                    'total_time': total_time,
+                    'voltage_scale': volt_scale[0],
                     'time_values': t.tolist(),
                     'signal_values': ch1_data
                 }, f, indent=2)
@@ -1120,6 +1134,17 @@ class SignalGeneratorApp(ctk.CTk):
             self.after(0, lambda: messagebox.showerror("Erro ao importar WAV", error_msg))
             self.set_status(f"❌ Erro ao importar: {error_msg}", "red")
 
+    def _format_freq(self, f):
+        """Formata valores de frequência para exibição"""
+        if f < 1e3:
+            return f"{f:.1f} Hz"
+        elif f < 1e6:
+            return f"{f / 1e3:.2f} kHz"
+        elif f < 1e9:
+            return f"{f / 1e6:.2f} MHz"
+        else:
+            return f"{f / 1e9:.2f} GHz"
+
     def export_wav(self):
         """Exporta o sinal atual em formato WAV compatível com Fnirsi 1013D"""
         if not self.last_data:
@@ -1130,7 +1155,7 @@ class SignalGeneratorApp(ctk.CTk):
             defaultextension=".wav",
             filetypes=[("WAV files", "*.wav")]
         )
-        if not filepath:
+        if not filepath:  # Usuário cancelou
             return
 
         try:
@@ -1162,10 +1187,19 @@ class SignalGeneratorApp(ctk.CTk):
             # Cria o cabeçalho
             header = bytearray(208)
             # Índices de escala de tensão (canais 1 e 2)
-            header[4] = VOLT_LIST.index(self.imported_voltage_scale) if hasattr(self, 'imported_voltage_scale') else 2
-            header[14] = VOLT_LIST.index(self.imported_voltage_scale) if hasattr(self, 'imported_voltage_scale') else 2
+            if hasattr(self, 'imported_voltage_scale'):
+                header[4] = VOLT_LIST.index(self.imported_voltage_scale)
+                header[14] = VOLT_LIST.index(self.imported_voltage_scale)
+            else:
+                # Usa valores padrão se não foram importados
+                header[4] = 2  # Índice para 1V
+                header[14] = 2
+
             # Índice de escala de tempo
-            header[22] = TIME_LIST.index(time_scale)
+            if hasattr(self, 'imported_time_scale'):
+                header[22] = TIME_LIST.index(time_scale)
+            else:
+                header[22] = 5  # Índice para 1s
 
             # Constrói o arquivo completo
             file_data = bytearray(WAV_TOTAL_SIZE)
@@ -1188,7 +1222,10 @@ class SignalGeneratorApp(ctk.CTk):
 
             start_index = 1000
             end_index = start_index + len(data_bytes)
-            file_data[start_index:end_index] = data_bytes
+            if end_index <= WAV_TOTAL_SIZE:
+                file_data[start_index:end_index] = data_bytes
+            else:
+                raise ValueError("Dados excedem o tamanho máximo do arquivo WAV")
 
             # Escreve o arquivo
             with open(filepath, 'wb') as f:
@@ -1743,16 +1780,6 @@ class SignalGeneratorApp(ctk.CTk):
             return f"{s * 1e3:.2f} ms"
         else:
             return f"{s:.2f} s"
-
-    def _format_freq(self, f):
-        if f < 1e3:
-            return f"{f:.1f} Hz"
-        elif f < 1e6:
-            return f"{f / 1e3:.2f} kHz"
-        elif f < 1e9:
-            return f"{f / 1e6:.2f} MHz"
-        else:
-            return f"{f / 1e9:.2f} GHz"
 
     def _format_time_axis(self, x, pos):
         return self._format_time(x)
