@@ -5,11 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cd7c870d-bb93-4052-bf17-27f2907c46ea" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/seg3.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/last.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/V3.py" beforeDir="false" afterPath="$PROJECT_DIR$/V3.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/seg.py" beforeDir="false" afterPath="$PROJECT_DIR$/seg.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -68,7 +65,7 @@
       <recent name="D:\Downloads\Documentos\FFT" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.seg3">
+  <component name="RunManager" selected="Python.V3">
     <configuration name="V3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FFT" />
       <option name="ENV_FILES" value="" />
@@ -203,8 +200,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.seg3" />
         <item itemvalue="Python.V3" />
+        <item itemvalue="Python.seg3" />
         <item itemvalue="Python.seg" />
         <item itemvalue="Python.seg2" />
         <item itemvalue="Python.versão15" />
