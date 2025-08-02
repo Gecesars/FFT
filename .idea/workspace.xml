@@ -5,8 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cd7c870d-bb93-4052-bf17-27f2907c46ea" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/last.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/V3.py" beforeDir="false" afterPath="$PROJECT_DIR$/V3.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sab.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sab2.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sab3.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sab4.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sab5.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sexta_0108.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sxta2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,15 +54,24 @@
     "Python.V8.executor": "Run",
     "Python.app.executor": "Run",
     "Python.decode_wav.executor": "Run",
+    "Python.last.executor": "Run",
     "Python.main.executor": "Run",
+    "Python.sab.executor": "Run",
+    "Python.sab2.executor": "Run",
+    "Python.sab3.executor": "Run",
+    "Python.sab4.executor": "Run",
+    "Python.sab5.executor": "Run",
     "Python.seg.executor": "Run",
     "Python.seg2.executor": "Run",
     "Python.seg3.executor": "Run",
+    "Python.sexta_0108.executor": "Run",
+    "Python.sxta2.executor": "Run",
     "Python.v222.executor": "Run",
     "Python.versão15.executor": "Run",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
     "last_opened_file_path": "D:/Downloads/Documentos/FFT"
   }
 }]]></component>
@@ -65,29 +80,7 @@
       <recent name="D:\Downloads\Documentos\FFT" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.V3">
-    <configuration name="V3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="FFT" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/V3.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.sab5">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="FFT" />
       <option name="ENV_FILES" value="" />
@@ -110,7 +103,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="seg" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="sab" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FFT" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -123,7 +116,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/seg.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sab.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -132,7 +125,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="seg2" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="sab2" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FFT" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -145,7 +138,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/seg2.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sab2.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -154,7 +147,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="seg3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="sab3" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FFT" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -167,7 +160,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/seg3.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sab3.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -176,7 +169,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="versão15" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="sab4" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FFT" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -189,7 +182,29 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/versão15.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sab4.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="sab5" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="FFT" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sab5.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -200,11 +215,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.V3" />
-        <item itemvalue="Python.seg3" />
-        <item itemvalue="Python.seg" />
-        <item itemvalue="Python.seg2" />
-        <item itemvalue="Python.versão15" />
+        <item itemvalue="Python.sab5" />
+        <item itemvalue="Python.sab4" />
+        <item itemvalue="Python.sab3" />
+        <item itemvalue="Python.sab2" />
+        <item itemvalue="Python.sab" />
       </list>
     </recent_temporary>
   </component>
