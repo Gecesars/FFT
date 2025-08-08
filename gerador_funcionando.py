@@ -12,29 +12,33 @@ ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
 # ========= Constantes =========
-BAUDRATE = 921600         # CDC ignora baudrate, deixamos por consistência
+BAUDRATE = 921600         # CDC ignora baudrate, ok
 READ_SLEEP_S = 0.01
 CMD_EOL = "\r\n"
 
-MAX_FREQ_HZ = 3900        # compatível com LUT=256 e fs máx ~1e6
+MAX_FREQ_HZ = 3900
 MIN_FREQ_HZ = 1
 DEFAULT_FREQ = 1000
 
 WAVE_TYPES = ["SINE", "SQUARE", "TRI", "SAWUP", "SAWDN"]
 WIN_TYPES = ["NONE", "HANN", "BLACKMAN", "NUTTALL"]
 
-CONNECT_STARTUP_DELAY = 0.30   # espera pós open
-WRITE_GAP_MS = 10              # gap entre comandos
-FREQ_DEBOUNCE_MS = 160         # debounce do slider de frequência
-WIN_DEBOUNCE_MS = 160          # debounce do slider de taper
+CONNECT_STARTUP_DELAY = 0.30
+WRITE_GAP_MS = 10
+FREQ_DEBOUNCE_MS = 160
+WIN_DEBOUNCE_MS = 160
 
-# ========= Helpers =========
+# Sequência de rearm do AWG: tempos entre comandos
+AWG_REARM_STEP_MS = 60      # gap entre "DAC 0" -> "WAVEWIN" -> "WAVE ..."
+AWG_RETRY_BACKOFF_MS = 200  # se firmware responder "ERROR: DAC start", tenta mais 1x depois disso
+
+
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
 
 class HardwareCommunicator:
-    """Gerencia a porta serial em thread separada + fila de TX com pacing."""
+    """Serial CDC com RX/TX em threads + fila de TX com pacing."""
     def __init__(self, data_queue, status_cb=None):
         self.ser = None
         self.port = None
@@ -78,7 +82,7 @@ class HardwareCommunicator:
             self.tx_thread = threading.Thread(target=self._writer_loop, daemon=True)
             self.tx_thread.start()
 
-            # Sondagem rápida
+            # Sondagem
             self.send_command("PING", enqueue=True)
             self.status_cb(connected=True, port=self.port)
             return True, f"Conectado a {self.port} (CDC)"
@@ -200,9 +204,14 @@ class App(ctk.CTk):
         self.is_wave_running = False
         self.is_accel_on = False
         self.hb_on = True
+
         self._freq_send_after_id = None
         self._win_send_after_id = None
-        self._last_wave_cmd = None  # evita reenvio redundante
+
+        # Sequenciador AWG
+        self._awg_apply_token = 0
+        self._awg_retry_armed = False
+        self._last_wave_cmd_text = None  # só pra log/evitar flood se parar
 
         # Layout
         self.grid_columnconfigure(0, weight=1)
@@ -291,7 +300,7 @@ class App(ctk.CTk):
             row=0, column=0, columnspan=7, pady=(8, 10)
         )
 
-        # Tipo de onda
+        # Forma
         ctk.CTkLabel(f, text="Forma:").grid(row=1, column=0, padx=6, pady=6, sticky="w")
         self.wave_menu = ctk.CTkOptionMenu(f, values=WAVE_TYPES, command=self._wave_type_changed)
         self.wave_menu.set("SINE")
@@ -322,7 +331,7 @@ class App(ctk.CTk):
         self.freq_entry.grid(row=2, column=5, padx=6, pady=6, sticky="e")
         ctk.CTkButton(f, text="Aplicar", width=80, command=self._apply_freq_entry).grid(row=2, column=6, padx=6, pady=6)
 
-        # Iniciar/Parar
+        # Start/Stop
         self.start_btn = ctk.CTkButton(f, text="Iniciar", width=120, command=self._toggle_wave)
         self.start_btn.grid(row=3, column=0, padx=6, pady=(10, 10), sticky="w")
 
@@ -384,7 +393,6 @@ class App(ctk.CTk):
 
     def _toggle_connection(self):
         if self.communicator.running:
-            # desligar streams/awg antes
             self._send("ACCEL 0")
             self._send("DAC 0")
             _, msg = self.communicator.disconnect()
@@ -399,10 +407,10 @@ class App(ctk.CTk):
             self._log(f"[pc] {msg}")
             if ok:
                 self.connect_button.configure(text="Desconectar")
-                # sincroniza estado inicial
                 self.after(350, lambda: self._send("HELP"))
                 self.after(500, lambda: self._send(f"SYS HB {1 if self.hb_on else 0}"))
-                self.after(700, lambda: self._apply_wavewin(send_even_if_same=True))
+                # aplica janela/taper default no firmware (sem ligar AWG)
+                self.after(650, lambda: self._send(f"WAVEWIN {self.win_menu.get()} {int(self.taper_slider.get())}"))
 
     # ---------- Sistema ----------
     def _toggle_hb(self):
@@ -411,7 +419,6 @@ class App(ctk.CTk):
 
     def _reset_mcu(self):
         if messagebox.askyesno("Reset", "Tem certeza que deseja resetar o MCU?"):
-            # tenta parar AWG/ACCEL antes
             self._send("ACCEL 0")
             self._send("DAC 0")
             self._send("SYS RESET")
@@ -421,32 +428,27 @@ class App(ctk.CTk):
         state = 1 if self.led_switches[n].get() else 0
         self._send(f"LED {n} {state}")
 
-    # ---------- AWG ----------
+    # ---------- AWG (com rearm atômico) ----------
     def _wave_type_changed(self, *_):
         if self.is_wave_running:
-            self._send_wave_cmd()
+            self._queue_awg_rearm()
 
     def _window_changed(self, *_):
-        # aplica imediatamente (com debounce leve via after)
+        # Mesmo sem AWG rodando, configuramos a janela no firmware
         if self._win_send_after_id:
             self.after_cancel(self._win_send_after_id)
-        self._win_send_after_id = self.after(WIN_DEBOUNCE_MS, self._apply_wavewin)
+        self._win_send_after_id = self.after(WIN_DEBOUNCE_MS, self._apply_window_and_maybe_rearm)
 
-    def _apply_wavewin(self, send_even_if_same: bool=False):
-        wt = self.win_menu.get()
-        taper = int(self.taper_slider.get())
-        cmd = f"WAVEWIN {wt} {taper}"
-        # não há cache pra WAVEWIN; sempre manda (é barato)
-        self._send(cmd)
-        if self.is_wave_running and send_even_if_same:
-            # reenvia a forma atual pra garantir LUT regenerada já está em uso
-            self._send_wave_cmd(force=True)
+    def _apply_window_and_maybe_rearm(self):
+        self._send(f"WAVEWIN {self.win_menu.get()} {int(self.taper_slider.get())}")
+        if self.is_wave_running:
+            self._queue_awg_rearm()
 
     def _on_taper_slider(self, value):
         self.taper_val.configure(text=f"{int(value)}%")
         if self._win_send_after_id:
             self.after_cancel(self._win_send_after_id)
-        self._win_send_after_id = self.after(WIN_DEBOUNCE_MS, self._apply_wavewin)
+        self._win_send_after_id = self.after(WIN_DEBOUNCE_MS, self._apply_window_and_maybe_rearm)
 
     def _on_freq_slider(self, value):
         self.freq_entry.delete(0, tk.END)
@@ -458,7 +460,7 @@ class App(ctk.CTk):
     def _freq_maybe_send(self):
         self._freq_send_after_id = None
         if self.is_wave_running:
-            self._send_wave_cmd()
+            self._queue_awg_rearm()
 
     def _apply_freq_entry(self):
         try:
@@ -469,35 +471,53 @@ class App(ctk.CTk):
         f = clamp(f, MIN_FREQ_HZ, MAX_FREQ_HZ)
         self.freq_slider.set(f)
         if self.is_wave_running:
-            self._send_wave_cmd()
+            self._queue_awg_rearm()
 
     def _toggle_wave(self):
         if not self.is_wave_running:
             self.is_wave_running = True
             self.start_btn.configure(text="Parar")
-            self._send_wave_cmd(force=True)
+            self._queue_awg_rearm()
         else:
             self.is_wave_running = False
             self.start_btn.configure(text="Iniciar")
-            self._last_wave_cmd = None
-            self._send("DAC 0")  # compatibilidade com firmware
+            self._last_wave_cmd_text = None
+            self._send("DAC 0")
 
-    def _send_wave_cmd(self, force: bool=False):
+    def _queue_awg_rearm(self):
+        """Coalescer mudanças e rearmar AWG: DAC 0 -> (WAVEWIN) -> WAVE ... com cancel de sequências antigas."""
         if not self.communicator.running:
             return
+
         try:
             f = int(float(self.freq_entry.get() or DEFAULT_FREQ))
         except ValueError:
             f = DEFAULT_FREQ
         f = clamp(f, MIN_FREQ_HZ, MAX_FREQ_HZ)
         w = self.wave_menu.get()
+        win = self.win_menu.get()
+        taper = int(self.taper_slider.get())
 
-        # Firmware **NÃO** aceita duty — não envie!
-        cmd = f"WAVE {w} {f}"
-        if not force and cmd == self._last_wave_cmd:
-            return  # evita flood
+        # Incrementa token para invalidar sequências anteriores
+        self._awg_apply_token += 1
+        my_token = self._awg_apply_token
+        self._awg_retry_armed = False  # limpa retry
+
+        # Monta comandos
+        cmd_stop = "DAC 0"
+        cmd_win  = f"WAVEWIN {win} {taper}"
+        cmd_wave = f"WAVE {w} {f}"
+        self._last_wave_cmd_text = cmd_wave
+
+        # Dispara com pequenos gaps, respeitando token
+        self._send(cmd_stop)  # stop imediato
+        self.after(AWG_REARM_STEP_MS, lambda: self._send_if_token(cmd_win, my_token))
+        self.after(2*AWG_REARM_STEP_MS, lambda: self._send_if_token(cmd_wave, my_token))
+
+    def _send_if_token(self, cmd, token):
+        if token != self._awg_apply_token:
+            return  # sequência antiga, ignorar
         self._send(cmd)
-        self._last_wave_cmd = cmd
 
     # ---------- ACCEL ----------
     def _toggle_accel(self):
@@ -515,10 +535,8 @@ class App(ctk.CTk):
                     self._update_status(connected=False, port=None)
                     continue
 
-                # Console
                 self._log(f"Pyboard: {msg}")
 
-                # Parse de algumas respostas úteis
                 if msg.startswith("A:"):
                     try:
                         x, y, z = map(int, msg[2:].split(","))
@@ -530,15 +548,22 @@ class App(ctk.CTk):
                         self.lbl_z.configure(text=str(z))
                     except Exception:
                         pass
-                elif msg.startswith("SYS:"):
-                    # você pode extrair clocks aqui se quiser
-                    pass
-                elif msg == "OK":
-                    pass
-                elif msg.startswith("ERROR"):
-                    pass
+                elif msg == "ERROR: DAC start":
+                    # Se o firmware acusar falha, tente um único rearm com backoff curto
+                    if self.is_wave_running and not self._awg_retry_armed:
+                        self._awg_retry_armed = True
+                        tok_before = self._awg_apply_token
+                        self.after(AWG_RETRY_BACKOFF_MS, lambda: self._retry_awg_if_still(tok_before))
         finally:
             self.after(80, self._process_serial_queue)
+
+    def _retry_awg_if_still(self, prev_token):
+        # só re-tenta se ninguém mexeu desde então (token não mudou) e ainda está rodando
+        if not self.is_wave_running:
+            return
+        if prev_token != self._awg_apply_token:
+            return
+        self._queue_awg_rearm()
 
     # ---------- Util ----------
     def _send(self, cmd: str):
@@ -587,7 +612,6 @@ class App(ctk.CTk):
     def _on_close(self):
         try:
             if self.communicator.running:
-                # tente deixar tudo parado
                 self._send("ACCEL 0")
                 self._send("DAC 0")
                 time.sleep(0.05)
