@@ -1,0 +1,5 @@
+../Core/Src/accel_mma7660.c:3:13:write_reg	3
+../Core/Src/accel_mma7660.c:14:13:read_reg	3
+../Core/Src/accel_mma7660.c:25:6:MMA7660_Init	7
+../Core/Src/accel_mma7660.c:64:6:MMA7660_ReadAxis	3
+../Core/Src/accel_mma7660.c:74:6:MMA7660_ReadXYZ	7
