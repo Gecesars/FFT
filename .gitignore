@@ -38,9 +38,7 @@ dist/
 *.xlsx
 *.pdf
 *.svg
-*.c
-*.cpp
-*.h
+
 # Arquivos do matplotlib
 *.png
 

@@ -5,25 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cd7c870d-bb93-4052-bf17-27f2907c46ea" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/gerador_funcionando.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/main.cyclo" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/main.cyclo" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/main.d" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/main.d" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/main.o" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/main.o" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/main.su" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/main.su" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_hal_msp.cyclo" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_hal_msp.cyclo" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_hal_msp.o" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_hal_msp.o" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_hal_msp.su" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_hal_msp.su" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_it.cyclo" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_it.cyclo" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_it.o" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_it.o" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_it.su" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/Core/Src/stm32f4xx_it.su" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/USB_DEVICE/App/usbd_cdc_if.cyclo" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/USB_DEVICE/App/usbd_cdc_if.cyclo" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/USB_DEVICE/App/usbd_cdc_if.o" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/USB_DEVICE/App/usbd_cdc_if.o" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/USB_DEVICE/App/usbd_cdc_if.su" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/USB_DEVICE/App/usbd_cdc_if.su" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/wave_gen2.elf" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/wave_gen2.elf" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/wave_gen2.list" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/wave_gen2.list" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Debug/wave_gen2.map" beforeDir="false" afterPath="$PROJECT_DIR$/Debug/wave_gen2.map" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wav_control_pyboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/wav_control_pyboard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
